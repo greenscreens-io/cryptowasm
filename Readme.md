@@ -1,8 +1,10 @@
-# CryptoWasm - a WebAssemby drop-in replacement for subtle.crypto
+# CryptoWasm 
 
-NOTE: This is experimental, not for production use. 
+**NOTE** This is experimental, not for production use. 
 
-CryptoWasm is a drop-in replacement for native CryptoSubtle when encryption is required on non-https websites.
+CryptoWasm is a WebAssemby drop-in replacement for native CryptoSubtle when encryption is required on non-https websites.
+
+Source is written in GO to support encryption algorthms, JavaScript modules are integration wrapper used as a drop-in replacement for browser native CraptoAPi.
 
 For Web Crypto API fetures implemented, please refer to https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto.
 
