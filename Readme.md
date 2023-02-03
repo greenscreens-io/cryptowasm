@@ -1,5 +1,7 @@
 # CryptoWasm 
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 **NOTE** This is experimental, not for production use. 
 
 CryptoWasm is a WebAssemby drop-in replacement for native CryptoSubtle when encryption is required on non-https websites.
