@@ -1,4 +1,4 @@
-# Using CryptoWasm
+# CryptoWasm - a WebAssemby drop-in replacement for subtle.crypto
 
 NOTE: This is experimental, not for production use. 
 
