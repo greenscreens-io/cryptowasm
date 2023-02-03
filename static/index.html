@@ -1,0 +1,21 @@
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <script type="module" src="index.mjs"></script>
+</head>
+<body>
+<div>
+    <label for="inputField">Enter value</label>
+    <input id="inputField" name="Hash" type="text">
+    <div id="outputHash" style="font-size: 20px"></div>
+</div>
+<script>
+    const inputField = document.querySelector('#inputField')
+    const outputHash = document.querySelector('#outputHash')
+    inputField.addEventListener('keyup', () => {
+        const raw = CryptoWasm.hash.Sha512(inputField.value, true);
+        outputHash.innerHTML = CryptoWasm.toHex(raw);
+    });
+</script>
+</body>
+</html>
