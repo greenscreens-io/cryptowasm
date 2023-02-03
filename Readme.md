@@ -18,9 +18,11 @@ For Web Crypto API fetures implemented, please refer to https://developer.mozill
 
 ## Compilation
 
-Code uses ECDH - requires Go 1.20
-Last TinyGo 0.26 does not support full reflection, key export to PEM does not work 
-Last TinyGo 0.26 does not support Go 1.20, not possible to compile.
+- Code uses ECDH - requires Go 1.20
+
+- Last TinyGo 0.26 does not support full reflection, key export to PEM does not work 
+
+- Last TinyGo 0.26 does not support Go 1.20, not possible to compile.
 
 To see how to compile in GO and TinyGo, check __.bat__ files
 
