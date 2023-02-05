@@ -146,10 +146,10 @@ key = new Uint8Array(d)
 data = new TextEncoder().encode(data)
 
 cnt = new Uint8Array(16)
-crypto.getRandomValues(d)
+crypto.getRandomValues(new Uint8Array(cnt))
 
 r = await crypto.subtle.encrypt({name:'AES-CTR', length:64, counter : cnt}, k, data)
-res = new uint8Array(r)
+res = new Uint8Array(r)
 ```
 
 ## Using ECDHA functions

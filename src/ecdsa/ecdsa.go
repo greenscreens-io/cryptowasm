@@ -163,10 +163,12 @@ func RemoveKey(id string, pub bool) bool {
 
 // web crypto api use r|s format instead of asn1
 func Sign(id string, data []byte, size int, asn bool) ([]byte, error) {
+
 	privateKey := ecdsaCache.Private.Get(id)
 	if privateKey == nil {
 		return nil, errors.New("no key")
 	}
+
 	hash := base.DataToHash(data, size)
 	if asn {
 		return ecdsa.SignASN1(rand.Reader, privateKey, hash)
@@ -182,10 +184,12 @@ func Sign(id string, data []byte, size int, asn bool) ([]byte, error) {
 
 // web crypto api use r|s format instead of asn1
 func Verify(id string, data, signature []byte, size int, asn bool) bool {
+
 	publicKey := ecdsaCache.Public.Get(id)
 	if publicKey == nil {
 		return false
 	}
+
 	hash := base.DataToHash(data, size)
 	if asn {
 		return ecdsa.VerifyASN1(publicKey, hash, signature)
