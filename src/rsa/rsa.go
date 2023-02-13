@@ -88,8 +88,6 @@ func ExportPrivateKey(id string, fmt lib.Format) (any, error) {
 	var err error
 
 	switch fmt {
-	case lib.FormatRaw:
-		data, err = encodePrivKeyRaw(privateKey)
 	case lib.FormatPem:
 		data, err = encodePrivKey(privateKey)
 	case lib.FormatJWK:

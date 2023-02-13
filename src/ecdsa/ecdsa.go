@@ -5,6 +5,7 @@ package ecdsa
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"errors"
 	"reflect"
@@ -99,8 +100,6 @@ func ExportPrivateKey(id string, fmt lib.Format) (any, error) {
 	}
 
 	switch fmt {
-	case lib.FormatRaw:
-		return encodePrivKeyRaw(privateKey)
 	case lib.FormatPem:
 		return encodePrivKey(privateKey)
 	case lib.FormatJWK:
@@ -122,7 +121,7 @@ func ExportPublicKey(id string, fmt lib.Format) (any, error) {
 
 	switch fmt {
 	case lib.FormatRaw:
-		return encodePubKeyRaw(publicKey)
+		return elliptic.Marshal(publicKey.Curve, publicKey.X, publicKey.Y), nil
 	case lib.FormatPem:
 		return encodePubKey(publicKey)
 	case lib.FormatJWK:

@@ -9,7 +9,7 @@ TinyGO makes wasm significantly smaller than GO WASM, however, issues noticed
 - memory leaks
   https://github.com/tinygo-org/tinygo/issues/1140
 
-- ECDH algorithm supported from GO 1.20; currently not supported version by TinyGO 0.26 compiler.
+- ECDH algorithm supported from GO 1.20; supported by TinyGO 0.27+ compiler.
 
 ## Algorithms
 ____

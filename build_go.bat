@@ -13,9 +13,9 @@ set PKG_CONFIG_PATH=%GOPATH%\pkgconfig\%GOOS%_%GOARCH%
 set PKG_CONFIG_LIBDIR=%MINGW%\lib64\pkgconfig
 
 rem copy /Y %GOROOT%\misc\wasm\wasm_exec.min.js .\static\lib
-copy /Y %GOROOT%\misc\wasm\wasm_exec.js .\static\lib   
+copy /Y %GOROOT%\misc\wasm\wasm_exec.js .\static\release   
 
 @echo on
-go build -o ./static/lib/cryptojs.wasm ./src
+go build -o ./static/release/cryptojs.wasm ./src
 
-rem wasm-opt static/lib/cryptojs.wasm -o static/lib/cryptojs.wasm -Os --strip-debug --enable-bulk-memory --precompute
+rem wasm-opt static/release/cryptojs.wasm -o static/release/cryptojs.wasm -Os --strip-debug --enable-bulk-memory --precompute

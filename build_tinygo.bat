@@ -13,10 +13,10 @@ set GOCACHE=C:\Users\%username%\AppData\Local\go-build\x64
 set PKG_CONFIG_PATH=%GOPATH%\pkgconfig\%GOOS%_%GOARCH%
 set PKG_CONFIG_LIBDIR=%MINGW%\lib64\pkgconfig
 
-rem copy /Y %TINYGO%\targets\wasm_exec.min.js .\static\lib
-copy /Y %TINYGO%\targets\wasm_exec.js .\static\lib 
+rem copy /Y %TINYGO%\targets\wasm_exec.min.js .\static\release
+copy /Y %TINYGO%\targets\wasm_exec.js .\static\release 
 
 @echo on
-tinygo build -no-debug -panic trap -target wasm  -o ./static/lib/cryptojs.wasm ./src
+tinygo build -no-debug -panic trap -target wasm  -o ./static/release/cryptojs.wasm ./src
 
-wasm-opt static/lib/cryptojs.wasm -o static/lib/cryptojs.wasm -Os --strip-debug --enable-bulk-memory --precompute
+wasm-opt static/release/cryptojs.wasm -o static/release/cryptojs.wasm -Os --strip-debug --enable-bulk-memory --precompute

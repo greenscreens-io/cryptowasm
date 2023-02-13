@@ -109,8 +109,6 @@ func ExportPrivateKey(id string, fmt lib.Format) (any, error) {
 	}
 
 	switch fmt {
-	case lib.FormatRaw:
-		return encodePrivKeyRaw(privateKey)
 	case lib.FormatPem:
 		return encodePrivKey(privateKey)
 	case lib.FormatJWK:
@@ -132,7 +130,7 @@ func ExportPublicKey(id string, fmt lib.Format) (any, error) {
 
 	switch fmt {
 	case lib.FormatRaw:
-		return encodePubKeyRaw(publicKey)
+		return publicKey.Bytes(), nil
 	case lib.FormatPem:
 		return encodePubKey(publicKey)
 	case lib.FormatJWK:
@@ -160,7 +158,7 @@ func GenerateKey(size int) (string, error) {
 	return ecdhCache.SetKeyPair(privateKey, privateKey.PublicKey()), nil
 }
 
-// DeriveKey derives a new key (mostly ued for AES encryption)
+// DeriveKey derives a new key (mostly used for AES encryption)
 // based on local private key, and imported public key
 // Inputs are id's of keys stroed in cache
 func DeriveKey(priv, pub string, bitLen int) ([]byte, error) {

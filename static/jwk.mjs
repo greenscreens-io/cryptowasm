@@ -1,8 +1,8 @@
-import CryptoJSWasm from './lib/WasmLoader.mjs'
-import CryptoJS from './lib/CryptoJS.mjs'
+import CryptoJSWasm from './modules/WasmLoader.mjs'
+import CryptoJS from './modules/CryptoJS.mjs'
 
-globalThis.CRYPTO_WASM = '/lib';
-globalThis.CRYPTO_GO = '/lib';
+globalThis.CRYPTO_WASM = '/release';
+globalThis.CRYPTO_GO = '/release';
 
 await CryptoJSWasm.init();
 

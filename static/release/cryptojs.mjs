@@ -1,0 +1,10 @@
+/*
+ * Copyright (C) 2015, 2023 Green Screens Ltd.
+ */
+if (!globalThis.crypto.subtle) {
+    const { CryptoJS, WasmLoader } = await import('./release/io.greenscreens.cryptojs.min.js');
+    await WasmLoader.init();
+    globalThis.crypto.subtle = new CryptoJS();
+    Object.seal(globalThis.crypto.subtle);
+    Object.seal(globalThis.crypto);
+}
