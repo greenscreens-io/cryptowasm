@@ -114,8 +114,6 @@ func ExportPublicKey(id string, fmt lib.Format) (any, error) {
 	var err error
 
 	switch fmt {
-	case lib.FormatRaw:
-		data, err = encodePubKeyRaw(publicKey)
 	case lib.FormatPem:
 		data, err = encodePubKey(publicKey)
 	case lib.FormatJWK:
