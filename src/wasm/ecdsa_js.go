@@ -7,8 +7,8 @@ package wasm
 
 import (
 	"syscall/js"
-	"wasm/cryptojs/src/ecdsa"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/ecdsa"
+	"wasm/cryptowasm/src/lib"
 )
 
 // InitEcdsa register ecdsa engine to the globalThis.CryptoWasm

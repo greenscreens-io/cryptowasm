@@ -8,7 +8,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"reflect"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/lib"
 )
 
 // https://pkg.go.dev/crypto/ecdh in 1.20v when released

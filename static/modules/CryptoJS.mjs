@@ -340,6 +340,9 @@ export default class CryptoJS {
             case 'Ed25519':
                 res = me.#importAsyncKey(format, keyData, algorithm, extractable, keyUsages, wasm.ed25519);
                 break;
+            case 'X25519':
+                res = me.#importAsyncKey(format, keyData, algorithm, extractable, keyUsages, wasm.x25519);
+                break;                
             default: throw new Error(CryptoJS.#ERR_INVALID_ALG);
         }
         if (typeof res?.error === 'string') throw new Error(res.error);

@@ -7,7 +7,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"errors"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/lib"
 )
 
 func CBCEncrypter(key, data, iv []byte) ([]byte, error) {

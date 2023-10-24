@@ -5,7 +5,7 @@ package base
 
 import (
 	"io"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/lib"
 
 	"golang.org/x/crypto/hkdf"
 )

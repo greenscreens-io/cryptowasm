@@ -6,26 +6,27 @@
 package wasm
 
 // https://pkg.go.dev/crypto/ecdh in 1.20v when released
+// https://wicg.github.io/webcrypto-secure-curves/#x25519-description
 
 import (
 	"syscall/js"
-	"wasm/cryptowasm/src/ecdh"
-	"wasm/cryptowasm/src/lib"
+	"wasm/cryptojs/src/lib"
+	"wasm/cryptojs/src/x25519"
 )
 
-// InitEcdh register ecdh engine to the globalThis.CryptoWasm
-func InitEcdh(root js.Value) {
-	ecdhObj := initChild("ecdh", root)
-	ecdhObj.Set("GenerateKey", js.FuncOf(generateKeyEcdhJS))
-	ecdhObj.Set("ImportJWK", js.FuncOf(importJWKECDHJS))
-	ecdhObj.Set("ImportKey", js.FuncOf(importKeyEcdhJS))
-	ecdhObj.Set("ExportKey", js.FuncOf(exportKeyEcdhJS))
-	ecdhObj.Set("RemoveKey", js.FuncOf(removeKeyEcdhJS))
-	ecdhObj.Set("HasKey", js.FuncOf(hasKeyEcdhJS))
-	ecdhObj.Set("DeriveKey", js.FuncOf(deriveKeyEcdhJS))
+// InitEcdh register x25519 engine to the globalThis.CryptoWasm
+func InitX25519(root js.Value) {
+	x25519 := initChild("x25519", root)
+	x25519.Set("GenerateKey", js.FuncOf(generateKeyX25519JS))
+	x25519.Set("ImportJWK", js.FuncOf(importJWKX25519JS))
+	x25519.Set("ImportKey", js.FuncOf(importKeyX25519JS))
+	x25519.Set("ExportKey", js.FuncOf(exportKeyX25519JS))
+	x25519.Set("RemoveKey", js.FuncOf(removeKeyX25519JS))
+	x25519.Set("HasKey", js.FuncOf(hasKeyX25519JS))
+	x25519.Set("DeriveKey", js.FuncOf(deriveKeyX25519JS))
 }
 
-func generateKeyEcdhJS(this js.Value, args []js.Value) any {
+func generateKeyX25519JS(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
@@ -35,7 +36,7 @@ func generateKeyEcdhJS(this js.Value, args []js.Value) any {
 		return errorToJS(err)
 	}
 
-	data, err := ecdh.GenerateKey(args[0].Int())
+	data, err := x25519.GenerateKey()
 	if err != nil {
 		return errorToJS(err)
 	}
@@ -43,7 +44,7 @@ func generateKeyEcdhJS(this js.Value, args []js.Value) any {
 	return data
 }
 
-func importJWKECDHJS(this js.Value, args []js.Value) any {
+func importJWKX25519JS(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
@@ -64,14 +65,14 @@ func importJWKECDHJS(this js.Value, args []js.Value) any {
 		}
 	}
 
-	result, err := ecdh.ImportJWK(&raw, jsObj.Get("crv").String())
+	result, err := x25519.ImportJWK(&raw)
 	if err != nil {
 		return errorToJS(err)
 	}
 	return result
 }
 
-func importKeyEcdhJS(this js.Value, args []js.Value) any {
+func importKeyX25519JS(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
@@ -98,9 +99,9 @@ func importKeyEcdhJS(this js.Value, args []js.Value) any {
 	}
 
 	if isPub {
-		data, err = ecdh.ImportPublicKey(data)
+		data, err = x25519.ImportPublicKey(data)
 	} else {
-		data, err = ecdh.ImportPrivateKey(data)
+		data, err = x25519.ImportPrivateKey(data)
 	}
 
 	if err != nil {
@@ -110,7 +111,7 @@ func importKeyEcdhJS(this js.Value, args []js.Value) any {
 	return data
 }
 
-func exportKeyEcdhJS(this js.Value, args []js.Value) any {
+func exportKeyX25519JS(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
@@ -127,9 +128,9 @@ func exportKeyEcdhJS(this js.Value, args []js.Value) any {
 	var data any
 
 	if isPub {
-		data, err = ecdh.ExportPublicKey(id, lib.Format(fmt))
+		data, err = x25519.ExportPublicKey(id, lib.Format(fmt))
 	} else {
-		data, err = ecdh.ExportPrivateKey(id, lib.Format(fmt))
+		data, err = x25519.ExportPrivateKey(id, lib.Format(fmt))
 	}
 
 	if err != nil {
@@ -143,7 +144,7 @@ func exportKeyEcdhJS(this js.Value, args []js.Value) any {
 	return data
 }
 
-func removeKeyEcdhJS(this js.Value, args []js.Value) any {
+func removeKeyX25519JS(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
@@ -156,10 +157,10 @@ func removeKeyEcdhJS(this js.Value, args []js.Value) any {
 	id := args[0].String()
 	isPublic := getAsBool(&args, 1, false)
 
-	return ecdh.RemoveKey(id, isPublic)
+	return x25519.RemoveKey(id, isPublic)
 }
 
-func hasKeyEcdhJS(this js.Value, args []js.Value) any {
+func hasKeyX25519JS(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
@@ -172,10 +173,10 @@ func hasKeyEcdhJS(this js.Value, args []js.Value) any {
 	id := args[0].String()
 	isPublic := getAsBool(&args, 1, false)
 
-	return ecdh.HasKey(id, isPublic)
+	return x25519.HasKey(id, isPublic)
 }
 
-func deriveKeyEcdhJS(this js.Value, args []js.Value) any {
+func deriveKeyX25519JS(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
@@ -189,7 +190,7 @@ func deriveKeyEcdhJS(this js.Value, args []js.Value) any {
 	publicKey := args[1].String()
 	bitLength := args[2].Int()
 
-	result, err := ecdh.DeriveKey(privateKey, publicKey, bitLength)
+	result, err := x25519.DeriveKey(privateKey, publicKey, bitLength)
 	if err != nil {
 		return errorToJS(err)
 	}

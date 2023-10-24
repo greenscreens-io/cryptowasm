@@ -8,8 +8,8 @@ import (
 	"crypto/rsa"
 	"errors"
 	"reflect"
-	"wasm/cryptojs/src/base"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/base"
+	"wasm/cryptowasm/src/lib"
 )
 
 var stringType = reflect.TypeOf("")

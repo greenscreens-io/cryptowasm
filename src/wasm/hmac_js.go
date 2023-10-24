@@ -7,7 +7,7 @@ package wasm
 
 import (
 	"syscall/js"
-	"wasm/cryptojs/src/base"
+	"wasm/cryptowasm/src/base"
 )
 
 type hmacSignFn func([]byte, []byte) []byte

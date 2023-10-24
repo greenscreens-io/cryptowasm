@@ -10,7 +10,7 @@ import (
 	"crypto/sha512"
 	"errors"
 	"hash"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/lib"
 )
 
 func MD5(data []byte) ([]byte, error) {

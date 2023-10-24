@@ -7,7 +7,7 @@ package wasm
 
 import (
 	"syscall/js"
-	"wasm/cryptojs/src/base"
+	"wasm/cryptowasm/src/base"
 )
 
 type synccrypt3fn func([]byte, []byte, []byte) ([]byte, error)

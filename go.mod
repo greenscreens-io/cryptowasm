@@ -1,4 +1,4 @@
-module wasm/cryptojs
+module wasm/cryptowasm
 
 go 1.20
 

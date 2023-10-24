@@ -7,7 +7,7 @@ package wasm
 
 import (
 	"syscall/js"
-	"wasm/cryptojs/src/base"
+	"wasm/cryptowasm/src/base"
 )
 
 // InitPBKDF2 register PBKDF2 engine to the globalThis.CryptoWasm

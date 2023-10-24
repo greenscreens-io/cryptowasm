@@ -1,10 +1,10 @@
 /*
  * Copyright (C) 2015, 2023 Green Screens Ltd.
  */
-package ed25519
+package x25519
 
 import (
-	"crypto/ed25519"
+	"crypto/ecdh"
 	"crypto/rand"
 	"errors"
 	"reflect"
@@ -12,17 +12,18 @@ import (
 )
 
 // https://pkg.go.dev/crypto/ecdh in 1.20v when released
+// https://wicg.github.io/webcrypto-secure-curves/#x25519-description
 
 var stringType = reflect.TypeOf("")
 var byteArrayType = reflect.TypeOf([]byte{})
 
-var ed25519Cache = lib.NewKeyPairStore[ed25519.PrivateKey, ed25519.PublicKey]()
+var ecdhCache = lib.NewKeyPairStore[ecdh.PrivateKey, ecdh.PublicKey]()
 
 // ImportPrivateKey imports ECDH key encoded as PEM Base64 or raw binary encoding
 // returns an id of key stored in internal cache
 func ImportPrivateKey(data any) (string, error) {
 
-	var privateKey *ed25519.PrivateKey
+	var privateKey *ecdh.PrivateKey
 	var err error
 
 	if reflect.TypeOf(data) == stringType {
@@ -41,14 +42,14 @@ func ImportPrivateKey(data any) (string, error) {
 		return "", errors.New(lib.ERR_KEY_NOT_IMPORTED)
 	}
 
-	return ed25519Cache.SetKeyPair(privateKey, nil), nil
+	return ecdhCache.SetKeyPair(privateKey, privateKey.PublicKey()), nil
 }
 
 // ImportPublicKey imports ECDH key encoded as PEM Base64 or raw binary encoding
 // returns an id of key stored in internal cache
 func ImportPublicKey(data any) (string, error) {
 
-	var publicKey *ed25519.PublicKey
+	var publicKey *ecdh.PublicKey
 	var err error
 
 	if reflect.TypeOf(data) == stringType {
@@ -67,24 +68,30 @@ func ImportPublicKey(data any) (string, error) {
 		return "", errors.New(lib.ERR_KEY_NOT_IMPORTED)
 	}
 
-	return ed25519Cache.SetKeyPair(nil, publicKey), nil
+	return ecdhCache.SetKeyPair(nil, publicKey), nil
 }
 
 // ImportJWK imports JSON format of JSON Web Key into GO structure;
 // returns an id of key stored in internal cache
 func ImportJWK(raw *map[string][]byte) (string, error) {
 
-	var privateKey ed25519.PrivateKey
-	var publicKey ed25519.PublicKey
-
+	fn := ecdh.X25519()
 	isPublic := len((*raw)["d"]) == 0
-	publicKey = (*raw)["x"]
 
 	if isPublic {
-		return ed25519Cache.SetKeyPair(nil, &publicKey), nil
+		d := append([]byte{4}, (*raw)["x"]...)
+		d = append(d, (*raw)["y"]...)
+		k, err := fn.NewPublicKey(d)
+		if err != nil {
+			return "", err
+		}
+		return ecdhCache.SetKeyPair(nil, k), nil
 	} else {
-		privateKey = (*raw)["d"]
-		return ed25519Cache.SetKeyPair(&privateKey, &publicKey), nil
+		k, err := fn.NewPrivateKey((*raw)["d"])
+		if err != nil {
+			return "", err
+		}
+		return ecdhCache.SetKeyPair(k, k.PublicKey()), nil
 	}
 
 }
@@ -93,14 +100,12 @@ func ImportJWK(raw *map[string][]byte) (string, error) {
 // input is id of a key stored in intenal memory cache
 func ExportPrivateKey(id string, fmt lib.Format) (any, error) {
 
-	privateKey := ed25519Cache.Private.Get(id)
+	privateKey := ecdhCache.Private.Get(id)
 	if privateKey == nil {
 		return nil, errors.New(lib.ERR_KEY_NOT_FOUND)
 	}
 
 	switch fmt {
-	case lib.FormatRaw:
-		return encodePrivKeyRaw(privateKey)
 	case lib.FormatPem:
 		return encodePrivKey(privateKey)
 	case lib.FormatJWK:
@@ -115,14 +120,14 @@ func ExportPrivateKey(id string, fmt lib.Format) (any, error) {
 // input is id of a key stored in intenal memory cache
 func ExportPublicKey(id string, fmt lib.Format) (any, error) {
 
-	publicKey := ed25519Cache.Public.Get(id)
+	publicKey := ecdhCache.Public.Get(id)
 	if publicKey == nil {
 		return nil, errors.New(lib.ERR_KEY_NOT_FOUND)
 	}
 
 	switch fmt {
 	case lib.FormatRaw:
-		return encodePubKeyRaw(publicKey)
+		return publicKey.Bytes(), nil
 	case lib.FormatPem:
 		return encodePubKey(publicKey)
 	case lib.FormatJWK:
@@ -133,54 +138,39 @@ func ExportPublicKey(id string, fmt lib.Format) (any, error) {
 
 }
 
-// GenerateKey randomly generates a keypair based on allowed curve size
+// GenerateKey randomly generates a keypair
 func GenerateKey() (string, error) {
-
-	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	curve := ecdh.X25519()
+	privateKey, err := curve.GenerateKey(rand.Reader)
 	if err != nil {
 		return "", err
 	}
 
-	return ed25519Cache.SetKeyPair(&privateKey, &publicKey), nil
+	return ecdhCache.SetKeyPair(privateKey, privateKey.PublicKey()), nil
 }
 
-// Sign creates a digital signature of provided data, signed with private key
-// @priv id of a private key in memory cache
-// @messsage data to sign
-// @asn not used here
-func Sign(priv string, message []byte, asn bool) ([]byte, error) {
+// DeriveKey derives a new key (mostly used for AES encryption)
+// based on local private key, and imported public key
+// Inputs are id's of keys stroed in cache
+func DeriveKey(priv, pub string, bitLen int) ([]byte, error) {
 
-	privateKey := ed25519Cache.Private.Get(priv)
+	privateKey := ecdhCache.Private.Get(priv)
+	publicKey := ecdhCache.Public.Get(pub)
+
 	if privateKey == nil {
 		return nil, errors.New(lib.ERR_KEY_NOT_FOUND_PRV)
 	}
 
-	// result is r|s format
-	signature := ed25519.Sign(*privateKey, message)
-
-	/*
-		if asn {
-			r, s := fromRaw(signature)
-			signature = ecdsa.encodeSignature(r.Bytes(c.N), s.Bytes(c.N))
-		}
-	*/
-
-	return signature, nil
-}
-
-// Verify will check digital signature for provided data
-// @priv id of a private key in memory cache
-// @messsage data to verify
-// @signature matching signature
-// @asn not used here
-func Verify(pub string, message, signature []byte, asn bool) (bool, error) {
-
-	publicKey := ed25519Cache.Public.Get(pub)
 	if publicKey == nil {
-		return false, errors.New(lib.ERR_KEY_NOT_FOUND_PRV)
+		return nil, errors.New(lib.ERR_KEY_NOT_FOUND_PUB)
 	}
 
-	data := ed25519.Verify(*publicKey, message, signature)
+	data, err := privateKey.ECDH(publicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	data = lib.TrimToBits(data, bitLen)
 
 	return data, nil
 }
@@ -188,10 +178,10 @@ func Verify(pub string, message, signature []byte, asn bool) (bool, error) {
 // HasKey based on provided key id, checks if a key (public or private)
 // exist in the memory cache
 func HasKey(id string, pub bool) bool {
-	return ed25519Cache.Exists(id, pub)
+	return ecdhCache.Exists(id, pub)
 }
 
 // RemoveKey based on provided key id, removes a key from the cache
 func RemoveKey(id string, pub bool) bool {
-	return ed25519Cache.Exists(id, pub)
+	return ecdhCache.Remove(id, pub)
 }

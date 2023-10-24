@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2015, 2023 Green Screens Ltd.
  */
-package ecdh
+package x25519
 
 import (
 	"crypto/ecdh"
@@ -9,9 +9,6 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
-	"errors"
-	"strconv"
-	"wasm/cryptowasm/src/lib"
 )
 
 // encodePrivKey encode GO private key into a Base64 PEM format
@@ -89,21 +86,17 @@ func decodePubKeyRaw(x509EncodedPub []byte) (*ecdh.PublicKey, error) {
 // exportPrivateJWK exports GO private key structure into JSON Web Token
 func exportPrivateJWK(key *ecdh.PrivateKey) (jwk map[string]interface{}, err error) {
 	enc := base64.RawURLEncoding
-	bits, err := curveTosize(key.Curve())
-	if err != nil {
-		return nil, err
-	}
 	publicKey := key.PublicKey()
 	sb := key.Bytes()
 	pb := publicKey.Bytes()[1:]
 	seg := len(pb) / 2
 	jwk = map[string]interface{}{
-		"crv": "P-" + strconv.Itoa(bits),
+		"crv": "X25519",
 		"d":   enc.EncodeToString(sb),
 		"x":   enc.EncodeToString(pb[0:seg]),
 		"y":   enc.EncodeToString(pb[seg:]),
 		"ext": "true",
-		"kty": "EC",
+		"kty": "OKP",
 	}
 	return jwk, nil
 }
@@ -111,76 +104,14 @@ func exportPrivateJWK(key *ecdh.PrivateKey) (jwk map[string]interface{}, err err
 // exportPublicJWK exports GO public key structure into JSON Web Token
 func exportPublicJWK(key *ecdh.PublicKey) (jwk map[string]interface{}, err error) {
 	enc := base64.RawURLEncoding
-	bits, err := curveTosize(key.Curve())
-	if err != nil {
-		return nil, err
-	}
 	pb := key.Bytes()[1:]
 	seg := len(pb) / 2
 	jwk = map[string]interface{}{
-		"crv": "P-" + strconv.Itoa(bits),
+		"crv": "X25519",
 		"x":   enc.EncodeToString(pb[0:seg]),
 		"y":   enc.EncodeToString(pb[seg:]),
 		"ext": "true",
-		"kty": "EC",
+		"kty": "OKP",
 	}
 	return jwk, nil
-}
-
-// curveTosize matches Curve function to its bit size
-func curveTosize(curve ecdh.Curve) (int, error) {
-
-	if curve == ecdh.P256() {
-		return 256, nil
-	}
-
-	if curve == ecdh.P384() {
-		return 384, nil
-	}
-
-	if curve == ecdh.P521() {
-		return 521, nil
-	}
-
-	if curve == ecdh.X25519() {
-		return 256, nil
-	}
-
-	return 0, errors.New(lib.ERR_INVALID_KEY_EC)
-}
-
-// sizeToCurve converts bit size to Curve function
-func sizeToCurve(size int) (ecdh.Curve, error) {
-
-	var curve ecdh.Curve
-	switch size {
-	case 256:
-		curve = ecdh.P256()
-	case 384:
-		curve = ecdh.P384()
-	case 521:
-		curve = ecdh.P521()
-	case 25519:
-		curve = ecdh.X25519()
-	default:
-		return nil, errors.New(lib.ERR_INVALID_KEY_EC)
-	}
-
-	return curve, nil
-}
-
-// nameToCurve convert algorithm name to a curve function
-func nameToCurve(name string) (ecdh.Curve, error) {
-	switch name {
-	case "P-256":
-		return ecdh.P256(), nil
-	case "P-384":
-		return ecdh.P384(), nil
-	case "P-521":
-		return ecdh.P521(), nil
-	case "P-X25519":
-		return ecdh.X25519(), nil
-	default:
-		return nil, errors.New(lib.ERR_INVALID_KEY_EC)
-	}
 }

@@ -250,6 +250,15 @@ export default class CryptoKeyJS {
         return raw;
     }
 
+    #deriveX52219Bits(algorithm, bitLength = 0) {
+        const me = this;
+        if (bitLength > 256) throw new DOMException('OperationError');
+        if (bitLength === 0) return new Uint8Array();
+        const raw = me.crypto.x25519.DeriveKey(me.#key, algorithm.public.#key, bitLength);
+        if (typeof raw?.error === 'string') throw new Error(raw.error);
+        return raw;
+    }
+
     #deriveHKDFBits(algorithm, bitLength) {
         if (!bitLength || bitLength === 0 || bitLength % 8 > 0) throw new DOMException('OperationError');
         const me = this;
@@ -261,6 +270,12 @@ export default class CryptoKeyJS {
         const me = this;
         const size = CryptoKeyJS.hashSize(algorithm.hash);
         return me.crypto.GeneratePBKDF2(me.#key, algorithm.salt, algorithm.iterations, bitLength, size);
+    }
+
+    #deriveX52219Key(algorithm, derivedKeyAlgorithm, extractable, keyUsages) {
+        const length = derivedKeyAlgorithm.length;
+        const key = this.#deriveX52219Bits(algorithm, length);
+        return new CryptoKeyJS(derivedKeyAlgorithm, extractable, keyUsages, key);
     }
 
     #deriveECDHKey(algorithm, derivedKeyAlgorithm, extractable, keyUsages) {
@@ -289,7 +304,7 @@ export default class CryptoKeyJS {
         const name = algorithm.name === keyName ? algorithm.name : `${algorithm.name} <-> ${keyName}`;
 
         switch (name) {
-            case 'X25519':
+            case 'X25519':return me.#deriveX52219Bits(algorithm, length);
             case 'ECDH': return me.#deriveECDHBits(algorithm, length);
             case 'HKDF': return me.#deriveHKDFBits(algorithm, length);
             case 'PBKDF2': return me.#derivePBKDF2Bits(algorithm, length);
@@ -304,7 +319,7 @@ export default class CryptoKeyJS {
         const name = algorithm.name === keyName ? algorithm.name : `${algorithm.name} <-> ${keyName}`;
 
         switch (name) {
-            case 'X25519':
+            case 'X25519': return me.#deriveX52219Key(algorithm, derivedKeyAlgorithm, extractable, keyUsages);
             case 'ECDH': return me.#deriveECDHKey(algorithm, derivedKeyAlgorithm, extractable, keyUsages);
             case 'HKDF': return me.#deriveHKDFKey(algorithm, derivedKeyAlgorithm, extractable, keyUsages);
             case 'PBKDF2': return me.#derivePBKDF2Key(algorithm, derivedKeyAlgorithm, extractable, keyUsages);
@@ -387,6 +402,8 @@ export default class CryptoKeyJS {
                 return me.#exportKeyAsync(format, me.crypto.ecdh);
             case 'Ed25519':
                 return me.#exportKeyAsync(format, me.crypto.ed25519);
+            case 'X25519':
+                return me.#exportKeyAsync(format, me.crypto.x25519);                
             default: throw new Error(`${CryptoKeyJS.#ERR_INVALID_ALG} : ${name}`);
         }
 

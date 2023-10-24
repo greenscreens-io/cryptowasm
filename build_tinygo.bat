@@ -17,6 +17,7 @@ rem copy /Y %TINYGO%\targets\wasm_exec.min.js .\static\release
 copy /Y %TINYGO%\targets\wasm_exec.js .\static\release 
 
 @echo on
-tinygo build -no-debug -panic trap -target wasm  -o ./static/release/cryptojs.wasm ./src
+rem tinygo build -no-debug -panic=trap -target=wasm  -o ./static/release/cryptojs.wasm ./src
+tinygo build -no-debug -gc=conservative -panic=trap -target=wasm  -o ./static/release/cryptojs.wasm ./src
 
 wasm-opt static/release/cryptojs.wasm -o static/release/cryptojs.wasm -Os --strip-debug --enable-bulk-memory --precompute

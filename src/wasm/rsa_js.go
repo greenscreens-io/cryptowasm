@@ -7,8 +7,8 @@ package wasm
 
 import (
 	"syscall/js"
-	"wasm/cryptojs/src/lib"
-	"wasm/cryptojs/src/rsa"
+	"wasm/cryptowasm/src/lib"
+	"wasm/cryptowasm/src/rsa"
 )
 
 // InitRsa register rsa engine to the globalThis.CryptoWasm

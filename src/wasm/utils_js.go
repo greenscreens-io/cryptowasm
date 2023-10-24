@@ -12,7 +12,7 @@ import (
 	"fmt"
 	"strings"
 	"syscall/js"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/lib"
 )
 
 const (

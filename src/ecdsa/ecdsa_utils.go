@@ -14,7 +14,7 @@ import (
 	"math/big"
 	"runtime"
 	"strconv"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/lib"
 )
 
 // encodePrivKey encode GO private key into a Base64 PEM format

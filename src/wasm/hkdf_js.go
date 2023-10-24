@@ -7,7 +7,7 @@ package wasm
 
 import (
 	"syscall/js"
-	"wasm/cryptojs/src/base"
+	"wasm/cryptowasm/src/base"
 )
 
 // InitHKDF register HKDF engine to the globalThis.CryptoWasm

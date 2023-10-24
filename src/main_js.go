@@ -6,7 +6,7 @@
 package main
 
 import (
-	"wasm/cryptojs/src/wasm"
+	"wasm/cryptowasm/src/wasm"
 )
 
 // main initialization point for WASm,
@@ -27,5 +27,6 @@ func main() {
 	wasm.InitEcdsa(root)
 	wasm.InitEcdh(root)
 	wasm.InitED25519(root)
+	wasm.InitX25519(root)
 	<-done
 }

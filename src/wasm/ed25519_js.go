@@ -7,8 +7,8 @@ package wasm
 
 import (
 	"syscall/js"
-	"wasm/cryptojs/src/ed25519"
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/ed25519"
+	"wasm/cryptowasm/src/lib"
 )
 
 // InitED25519 register ed25519 engine to the globalThis.CryptoWasm

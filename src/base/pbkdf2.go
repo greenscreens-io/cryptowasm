@@ -4,7 +4,7 @@
 package base
 
 import (
-	"wasm/cryptojs/src/lib"
+	"wasm/cryptowasm/src/lib"
 
 	"golang.org/x/crypto/pbkdf2"
 )
