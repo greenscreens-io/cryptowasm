@@ -194,24 +194,29 @@ func PBKDF2_Generate_Key(secret, salt unsafe.Pointer, l1, l2, iter, keyLen, hash
 }
 
 //export RSA_Decrypt
-func RSA_Decrypt(id string, size C.int, data []byte) []byte {
-	data, err := rsa.Decrypt(id, int(size), data)
+func RSA_Decrypt(id *C.char, size C.int, data unsafe.Pointer, len C.int) unsafe.Pointer {
+	_id := C.GoString(id)
+	_data := C.GoBytes(data, len)
+	res, err := rsa.Decrypt(_id, int(size), _data)
 	lastError = err
-	return data
+	return C.CBytes(res)
 }
 
 //export RSA_Encrypt
-func RSA_Encrypt(id string, size C.int, data []byte) []byte {
-	data, err := rsa.Encrypt(id, int(size), data)
+func RSA_Encrypt(id *C.char, size C.int, data unsafe.Pointer, len C.int) unsafe.Pointer {
+	_id := C.GoString(id)
+	_data := C.GoBytes(data, len)
+	res, err := rsa.Encrypt(_id, int(size), _data)
 	lastError = err
-	return data
+	return C.CBytes(res)
 }
 
 //export RSA_Export_Private_Key_Raw
-func RSA_Export_Private_Key_Raw(id string) []byte {
-	data, err := rsa.ExportPrivateKey(id, lib.FormatRaw)
+func RSA_Export_Private_Key_Raw(id *C.char) unsafe.Pointer {
+	_id := C.GoString(id)
+	data, err := rsa.ExportPrivateKey(_id, lib.FormatRaw)
 	lastError = err
-	return data.([]byte)
+	return C.CBytes(data.([]byte))
 }
 
 //export RSA_Export_Private_Key_Pem

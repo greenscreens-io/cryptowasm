@@ -1,3 +1,5 @@
 webserver.exe
 node_modules
 .vscode
+cryptojs.dll
+cryptojs.h
