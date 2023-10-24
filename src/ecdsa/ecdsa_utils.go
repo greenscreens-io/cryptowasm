@@ -133,10 +133,10 @@ func importPublicJWK(raw *map[string][]byte, curve string) (*ecdsa.PublicKey, er
 }
 
 // exportPrivateJWK exports GO private key structure into JSON Web Token
-func exportPrivateJWK(key *ecdsa.PrivateKey) (jwk map[string]interface{}, err error) {
+func exportPrivateJWK(key *ecdsa.PrivateKey) (jwk map[string]any, err error) {
 	enc := base64.RawURLEncoding
 	s := strconv.Itoa(key.Curve.Params().BitSize)
-	jwk = map[string]interface{}{
+	jwk = map[string]any{
 		"crv": "P-" + s,
 		"d":   enc.EncodeToString(key.D.Bytes()),
 		"x":   enc.EncodeToString(key.X.Bytes()),
@@ -148,10 +148,10 @@ func exportPrivateJWK(key *ecdsa.PrivateKey) (jwk map[string]interface{}, err er
 }
 
 // exportPublicJWK exports GO public key structure into JSON Web Token
-func exportPublicJWK(key *ecdsa.PublicKey) (jwk map[string]interface{}, err error) {
+func exportPublicJWK(key *ecdsa.PublicKey) (jwk map[string]any, err error) {
 	enc := base64.RawURLEncoding
 	s := strconv.Itoa(key.Curve.Params().BitSize)
-	jwk = map[string]interface{}{
+	jwk = map[string]any{
 		"crv": "P-" + s,
 		"x":   enc.EncodeToString(key.X.Bytes()),
 		"y":   enc.EncodeToString(key.Y.Bytes()),

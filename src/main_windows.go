@@ -9,6 +9,7 @@ package main
 import "C"
 import (
 	"encoding/base64"
+	"encoding/json"
 	"unsafe"
 	"wasm/cryptowasm/src/base"
 	"wasm/cryptowasm/src/ecdh"
@@ -171,29 +172,37 @@ func Hmac_512_Verify(data unsafe.Pointer, size C.int, mac, key unsafe.Pointer) b
 }
 
 //export HKDF_Generate_Key
-func HKDF_Generate_Key(secret, salt, info []byte, size int) []byte {
-	data, err := base.GenerateHKDF(secret, salt, info, size)
+func HKDF_Generate_Key(secret, salt, info unsafe.Pointer, l1, l2, l3, size C.int) unsafe.Pointer {
+	_secret := C.GoBytes(secret, l1)
+	_salt := C.GoBytes(salt, l2)
+	var _info []byte
+	if info != nil {
+		_info = C.GoBytes(info, l3)
+	}
+	data, err := base.GenerateHKDF(_secret, _salt, _info, int(size))
 	lastError = err
-	return data
+	return C.CBytes(data)
 }
 
 //export PBKDF2_Generate_Key
-func PBKDF2_Generate_Key(secret, salt []byte, iter, keyLen, hashLen int) []byte {
-	data, err := base.GeneratePBKDF2(secret, salt, iter, keyLen, hashLen)
+func PBKDF2_Generate_Key(secret, salt unsafe.Pointer, l1, l2, iter, keyLen, hashLen C.int) unsafe.Pointer {
+	_secret := C.GoBytes(secret, l1)
+	_salt := C.GoBytes(salt, l2)
+	data, err := base.GeneratePBKDF2(_secret, _salt, int(iter), int(keyLen), int(hashLen))
 	lastError = err
-	return data
+	return C.CBytes(data)
 }
 
 //export RSA_Decrypt
-func RSA_Decrypt(id string, size int, data []byte) []byte {
-	data, err := rsa.Decrypt(id, size, data)
+func RSA_Decrypt(id string, size C.int, data []byte) []byte {
+	data, err := rsa.Decrypt(id, int(size), data)
 	lastError = err
 	return data
 }
 
 //export RSA_Encrypt
-func RSA_Encrypt(id string, size int, data []byte) []byte {
-	data, err := rsa.Encrypt(id, size, data)
+func RSA_Encrypt(id string, size C.int, data []byte) []byte {
+	data, err := rsa.Encrypt(id, int(size), data)
 	lastError = err
 	return data
 }
@@ -206,54 +215,70 @@ func RSA_Export_Private_Key_Raw(id string) []byte {
 }
 
 //export RSA_Export_Private_Key_Pem
-func RSA_Export_Private_Key_Pem(id string) string {
-	data, err := rsa.ExportPrivateKey(id, lib.FormatPem)
+func RSA_Export_Private_Key_Pem(id *C.char) *C.char {
+	_id := C.GoString(id)
+	data, err := rsa.ExportPrivateKey(_id, lib.FormatPem)
 	lastError = err
-	return data.(string)
+	return C.CString(data.(string))
 }
 
 //export RSA_Export_Private_Key_JWK
-func RSA_Export_Private_Key_JWK(id string) map[string]string {
-	data, err := rsa.ExportPrivateKey(id, lib.FormatJWK)
+func RSA_Export_Private_Key_JWK(id *C.char) *C.char {
+	_id := C.GoString(id)
+	data, err := rsa.ExportPrivateKey(_id, lib.FormatJWK)
 	lastError = err
-	return data.(map[string]string)
+	if err != nil {
+		return C.CString("")
+	}
+	r, err := json.Marshal(data.(map[string]any))
+	lastError = err
+	return C.CString(string(r))
 }
 
 //export RSA_Export_Public_Key_Raw
-func RSA_Export_Public_Key_Raw(id string) []byte {
-	data, err := rsa.ExportPublicKey(id, lib.FormatRaw)
+func RSA_Export_Public_Key_Raw(id *C.char) unsafe.Pointer {
+	_id := C.GoString(id)
+	data, err := rsa.ExportPublicKey(_id, lib.FormatRaw)
 	lastError = err
-	return data.([]byte)
+	return C.CBytes(data.([]byte))
 }
 
 //export RSA_Export_Public_Key_Pem
-func RSA_Export_Public_Key_Pem(id string) string {
-	data, err := rsa.ExportPublicKey(id, lib.FormatPem)
+func RSA_Export_Public_Key_Pem(id *C.char) *C.char {
+	_id := C.GoString(id)
+	data, err := rsa.ExportPublicKey(_id, lib.FormatPem)
 	lastError = err
-	return data.(string)
+	return C.CString(data.(string))
 }
 
-//export RSA_Export_Public_Key_JWK
-func RSA_Export_Public_Key_JWK(id string) map[string]string {
-	data, err := rsa.ExportPublicKey(id, lib.FormatJWK)
+//export RSA_Export_Public_Key_Jwk
+func RSA_Export_Public_Key_Jwk(id *C.char) *C.char {
+	_id := C.GoString(id)
+	data, err := rsa.ExportPublicKey(_id, lib.FormatJWK)
 	lastError = err
-	return data.(map[string]string)
+	if err != nil {
+		return C.CString("")
+	}
+	r, err := json.Marshal(data.(map[string]any))
+	lastError = err
+	return C.CString(string(r))
 }
 
 //export RSA_Generate_Key
-func RSA_Generate_Key(size, publicExponent int) string {
-	data, err := rsa.GenerateKey(size, publicExponent)
+func RSA_Generate_Key(size, publicExponent C.int) *C.char {
+	data, err := rsa.GenerateKey(int(size), int(publicExponent))
 	lastError = err
-	return data
+	return C.CString(data)
 }
 
 //export RSA_Has_Key
-func RSA_Has_Key(id string, pub bool) bool {
-	return rsa.HasKey(id, pub)
+func RSA_Has_Key(id *C.char, pub bool) bool {
+	_id := C.GoString(id)
+	return rsa.HasKey(_id, pub)
 }
 
-//export RSA_Import_JWK
-func RSA_Import_JWK(jsObj *map[string]string) string {
+//export RSA_Import_Jwk
+func RSA_Import_Jwk(jsObj *map[string]string) string {
 
 	keys := []string{"e", "n", "d", "p", "q", "qi", "dp", "dq"}
 	jsRaw, err := decodeJWK(jsObj, keys)
@@ -287,29 +312,29 @@ func RSA_Remove_Key(id string, pub bool) bool {
 }
 
 //export RSA_Sign_PKCS_1v15
-func RSA_Sign_PKCS_1v15(id string, raw []byte, size int) []byte {
-	data, err := rsa.SignPKCS1v15(id, raw, size)
+func RSA_Sign_PKCS_1v15(id string, raw []byte, size C.int) []byte {
+	data, err := rsa.SignPKCS1v15(id, raw, int(size))
 	lastError = err
 	return data
 }
 
 //export RSA_Sign_PSS
-func RSA_Sign_PSS(id string, raw []byte, hashLength, saltLength int) []byte {
-	data, err := rsa.SignPSS(id, raw, hashLength, saltLength)
+func RSA_Sign_PSS(id string, raw []byte, hashLength, saltLength C.int) []byte {
+	data, err := rsa.SignPSS(id, raw, int(hashLength), int(saltLength))
 	lastError = err
 	return data
 }
 
 //export RSA_Verify_PKCS_1v15
-func RSA_Verify_PKCS_1v15(id string, data, signature []byte, size int) bool {
-	err := rsa.VerifyPKCS1v15(id, data, signature, size)
+func RSA_Verify_PKCS_1v15(id string, data, signature []byte, size C.int) bool {
+	err := rsa.VerifyPKCS1v15(id, data, signature, int(size))
 	lastError = err
 	return err != nil
 }
 
 //export RSA_Verify_PSS
-func RSA_Verify_PSS(id string, data, signature []byte, hashLength, saltLength int) bool {
-	err := rsa.VerifyPSS(id, data, signature, hashLength, saltLength)
+func RSA_Verify_PSS(id string, data, signature []byte, hashLength, saltLength C.int) bool {
+	err := rsa.VerifyPSS(id, data, signature, int(hashLength), int(saltLength))
 	lastError = err
 	return err != nil
 }
@@ -333,8 +358,8 @@ func ECDH_Import_Private_Key(raw []byte) string {
 	return data
 }
 
-//export ECDH_Import_JWK
-func ECDH_Import_JWK(jsObj *map[string]string, curve string) string {
+//export ECDH_Import_Jwk
+func ECDH_Import_Jwk(jsObj *map[string]string, curve string) string {
 
 	keys := []string{"d", "x", "y"}
 	jsRaw, err := decodeJWK(jsObj, keys)
@@ -354,10 +379,10 @@ func ECDH_Has_Key(id string, pub bool) bool {
 }
 
 //export ECDH_Generate_Key
-func ECDH_Generate_Key(size int) string {
-	data, err := ecdh.GenerateKey(size)
+func ECDH_Generate_Key(size C.int) *C.char {
+	data, err := ecdh.GenerateKey(int(size))
 	lastError = err
-	return data
+	return C.CString(data)
 }
 
 //export ECDH_Export_Public_Key_Raw
@@ -374,8 +399,8 @@ func ECDH_Export_Public_Key_Pem(id string) string {
 	return data.(string)
 }
 
-//export ECDH_Export_Public_Key_JWK
-func ECDH_Export_Public_Key_JWK(id string) map[string]string {
+//export ECDH_Export_Public_Key_Jwk
+func ECDH_Export_Public_Key_Jwk(id string) map[string]string {
 	data, err := ecdh.ExportPublicKey(id, lib.FormatJWK)
 	lastError = err
 	return data.(map[string]string)
@@ -395,28 +420,28 @@ func ECDH_Export_Private_Key_Pem(id string) string {
 	return data.(string)
 }
 
-//export ECDH_Export_Private_Key_JWK
-func ECDH_Export_Private_Key_JWK(id string) map[string]string {
+//export ECDH_Export_Private_Key_Jwk
+func ECDH_Export_Private_Key_Jwk(id string) map[string]string {
 	data, err := ecdh.ExportPrivateKey(id, lib.FormatJWK)
 	lastError = err
 	return data.(map[string]string)
 }
 
 //export ECDH_Derive_Key
-func ECDH_Derive_Key(priv, pub string, bitLen int) []byte {
-	data, err := ecdh.DeriveKey(priv, pub, bitLen)
+func ECDH_Derive_Key(priv, pub string, bitLen C.int) []byte {
+	data, err := ecdh.DeriveKey(priv, pub, int(bitLen))
 	lastError = err
 	return data
 }
 
 //export ECDSA_Verify
-func ECDSA_Verify(id string, data, signature []byte, size int, asn bool) bool {
-	return ecdsa.Verify(id, data, signature, size, asn)
+func ECDSA_Verify(id string, data, signature []byte, size C.int, asn bool) bool {
+	return ecdsa.Verify(id, data, signature, int(size), asn)
 }
 
 //export ECDSA_Sign
-func ECDSA_Sign(id string, data []byte, size int, asn bool) []byte {
-	data, err := ecdsa.Sign(id, data, size, asn)
+func ECDSA_Sign(id string, data []byte, size C.int, asn bool) []byte {
+	data, err := ecdsa.Sign(id, data, int(size), asn)
 	lastError = err
 	return data
 }
@@ -440,8 +465,8 @@ func ECDSA_Import_Private_Key(raw []byte) string {
 	return data
 }
 
-//export ECDSA_Import_JWK
-func ECDSA_Import_JWK(jsObj *map[string]string, curve string) string {
+//export ECDSA_Import_Jwk
+func ECDSA_Import_Jwk(jsObj *map[string]string, curve string) string {
 
 	keys := []string{"d", "x", "y"}
 	jsRaw, err := decodeJWK(jsObj, keys)
@@ -461,10 +486,10 @@ func ECDSA_Has_Key(id string, pub bool) bool {
 }
 
 //export ECDSA_Generate_Key
-func ECDSA_Generate_Key(size int) string {
-	data, err := ecdsa.GenerateKey(size)
+func ECDSA_Generate_Key(size C.int) *C.char {
+	data, err := ecdsa.GenerateKey(int(size))
 	lastError = err
-	return data
+	return C.CString(data)
 }
 
 //export ECDSA_Export_Public_Key_Raw
@@ -481,8 +506,8 @@ func ECDSA_Export_Public_Key_Pem(id string) string {
 	return data.(string)
 }
 
-//export ECDSA_Export_Public_Key_JWK
-func ECDSA_Export_Public_Key_JWK(id string) map[string]string {
+//export ECDSA_Export_Public_Key_Jwk
+func ECDSA_Export_Public_Key_Jwk(id string) map[string]string {
 	data, err := ecdsa.ExportPublicKey(id, lib.FormatJWK)
 	lastError = err
 	return data.(map[string]string)
@@ -502,8 +527,8 @@ func ECDSA_Export_Private_Key_Pem(id string) string {
 	return data.(string)
 }
 
-//export ECDSA_Export_Private_Key_JWK
-func ECDSA_Export_Private_Key_JWK(id string) map[string]string {
+//export ECDSA_Export_Private_Key_Jwk
+func ECDSA_Export_Private_Key_Jwk(id string) map[string]string {
 	data, err := ecdsa.ExportPrivateKey(id, lib.FormatJWK)
 	lastError = err
 	return data.(map[string]string)
@@ -542,8 +567,8 @@ func ED25519_ImportPrivate_Key(raw []byte) string {
 	return data
 }
 
-//export ED25519_Import_JWK
-func ED25519_Import_JWK(jsObj *map[string]string) string {
+//export ED25519_Import_Jwk
+func ED25519_Import_Jwk(jsObj *map[string]string) string {
 
 	keys := []string{"d", "x"}
 	jsRaw, err := decodeJWK(jsObj, keys)
@@ -563,10 +588,10 @@ func ED25519_Has_Key(id string, pub bool) bool {
 }
 
 //export ED25519_Generate_Key
-func ED25519_Generate_Key() string {
+func ED25519_Generate_Key() *C.char {
 	data, err := ed25519.GenerateKey()
 	lastError = err
-	return data
+	return C.CString(data)
 }
 
 //export ED25519_Export_Public_Key_Raw
@@ -583,8 +608,8 @@ func ED25519_Export_Public_Key_Pem(id string) string {
 	return data.(string)
 }
 
-//export ED25519_Export_Public_Key_JWK
-func ED25519_Export_Public_Key_JWK(id string) map[string]string {
+//export ED25519_Export_Public_Key_Jwk
+func ED25519_Export_Public_Key_Jwk(id string) map[string]string {
 	data, err := ed25519.ExportPublicKey(id, lib.FormatJWK)
 	lastError = err
 	return data.(map[string]string)
@@ -604,8 +629,8 @@ func ED25519_Export_Private_Key_Pem(id string) string {
 	return data.(string)
 }
 
-//export ED25519_Export_Private_Key_JWK
-func ED25519_Export_Private_Key_JWK(id string) map[string]string {
+//export ED25519_Export_Private_Key_Jwk
+func ED25519_Export_Private_Key_Jwk(id string) map[string]string {
 	data, err := ed25519.ExportPrivateKey(id, lib.FormatJWK)
 	lastError = err
 	return data.(map[string]string)
@@ -630,8 +655,8 @@ func X25519_Import_Private_Key(raw []byte) string {
 	return data
 }
 
-//export X25519_Import_JWK
-func X25519_Import_JWK(jsObj *map[string]string) string {
+//export X25519_Import_Jwk
+func X25519_Import_Jwk(jsObj *map[string]string) string {
 
 	keys := []string{"d", "x", "y"}
 	jsRaw, err := decodeJWK(jsObj, keys)
@@ -651,10 +676,10 @@ func X25519_Has_Key(id string, pub bool) bool {
 }
 
 //export X25519_Generate_Key
-func X25519_Generate_Key() string {
+func X25519_Generate_Key() *C.char {
 	data, err := x25519.GenerateKey()
 	lastError = err
-	return data
+	return C.CString(data)
 }
 
 //export X25519_Export_Public_Key_Raw
@@ -671,8 +696,8 @@ func X25519_Export_Public_Key_Pem(id string) string {
 	return data.(string)
 }
 
-//export X25519_Export_Public_Key_JWK
-func X25519_Export_Public_Key_JWK(id string) map[string]string {
+//export X25519_Export_Public_Key_Jwk
+func X25519_Export_Public_Key_Jwk(id string) map[string]string {
 	data, err := x25519.ExportPublicKey(id, lib.FormatJWK)
 	lastError = err
 	return data.(map[string]string)
@@ -692,16 +717,16 @@ func X25519_Export_Private_Key_Pem(id string) string {
 	return data.(string)
 }
 
-//export X25519_Export_Private_Key_JWK
-func X25519_Export_Private_Key_JWK(id string) map[string]string {
+//export X25519_Export_Private_Key_Jwk
+func X25519_Export_Private_Key_Jwk(id string) map[string]string {
 	data, err := x25519.ExportPrivateKey(id, lib.FormatJWK)
 	lastError = err
 	return data.(map[string]string)
 }
 
 //export X25519_Derive_Key
-func X25519_Derive_Key(priv, pub string, bitLen int) []byte {
-	data, err := x25519.DeriveKey(priv, pub, bitLen)
+func X25519_Derive_Key(priv, pub string, bitLen C.int) []byte {
+	data, err := x25519.DeriveKey(priv, pub, int(bitLen))
 	lastError = err
 	return data
 }

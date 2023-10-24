@@ -84,10 +84,10 @@ func decodePubKeyRaw(x509EncodedPub []byte) (*ed25519.PublicKey, error) {
 
 // exportPrivateJWK exports GO private key structure into JSON Web Token
 // https://www.rfc-editor.org/rfc/rfc8037#appendix-A
-func exportPrivateJWK(key *ed25519.PrivateKey) (jwk map[string]interface{}, err error) {
+func exportPrivateJWK(key *ed25519.PrivateKey) (jwk map[string]any, err error) {
 	enc := base64.RawURLEncoding
 	pub := key.Public().(ed25519.PublicKey)
-	jwk = map[string]interface{}{
+	jwk = map[string]any{
 		"crv": "Ed25519",
 		"d":   enc.EncodeToString([]byte(*key)),
 		"x":   enc.EncodeToString([]byte(pub)),
@@ -99,9 +99,9 @@ func exportPrivateJWK(key *ed25519.PrivateKey) (jwk map[string]interface{}, err 
 
 // exportPublicJWK exports GO public key structure into JSON Web Token
 // https://www.rfc-editor.org/rfc/rfc8037#appendix-A
-func exportPublicJWK(key *ed25519.PublicKey) (jwk map[string]interface{}, err error) {
+func exportPublicJWK(key *ed25519.PublicKey) (jwk map[string]any, err error) {
 	enc := base64.RawURLEncoding
-	jwk = map[string]interface{}{
+	jwk = map[string]any{
 		"crv": "Ed25519",
 		"x":   enc.EncodeToString([]byte(*key)),
 		"ext": "true",

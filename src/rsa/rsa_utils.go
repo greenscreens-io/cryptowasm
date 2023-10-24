@@ -125,10 +125,10 @@ func importPublicJWK(raw *map[string][]byte) *rsa.PublicKey {
 }
 
 // exportPrivateJWK exports GO private key structure into JSON Web Token
-func exportPrivateJWK(key *rsa.PrivateKey) (jwk map[string]interface{}, err error) {
+func exportPrivateJWK(key *rsa.PrivateKey) (jwk map[string]any, err error) {
 	enc := base64.RawURLEncoding
 	exp := numberToBytes(uint32(key.E))
-	jwk = map[string]interface{}{
+	jwk = map[string]any{
 		"e":   enc.EncodeToString(exp),
 		"d":   enc.EncodeToString(key.D.Bytes()),
 		"n":   enc.EncodeToString(key.N.Bytes()),
@@ -144,10 +144,10 @@ func exportPrivateJWK(key *rsa.PrivateKey) (jwk map[string]interface{}, err erro
 }
 
 // exportPublicJWK exports GO public key structure into JSON Web Token
-func exportPublicJWK(key *rsa.PublicKey) (jwk map[string]interface{}, err error) {
+func exportPublicJWK(key *rsa.PublicKey) (jwk map[string]any, err error) {
 	enc := base64.RawURLEncoding
 	exp := numberToBytes(uint32(key.E))
-	jwk = map[string]interface{}{
+	jwk = map[string]any{
 		"e":   enc.EncodeToString(exp),
 		"n":   enc.EncodeToString(key.N.Bytes()),
 		"ext": "true",
