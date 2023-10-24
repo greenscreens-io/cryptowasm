@@ -324,33 +324,39 @@ func RSA_Remove_Key(id *C.char, pub bool) bool {
 }
 
 //export RSA_Sign_PKCS_1v15
-func RSA_Sign_PKCS_1v15(id *C.char, raw []byte, size C.int) []byte {
+func RSA_Sign_PKCS_1v15(id *C.char, raw unsafe.Pointer, len, size C.int) unsafe.Pointer {
 	_id := C.GoString(id)
-	data, err := rsa.SignPKCS1v15(_id, raw, int(size))
+	_raw := C.GoBytes(raw, len)
+	data, err := rsa.SignPKCS1v15(_id, _raw, int(size))
 	lastError = err
-	return data
+	return C.CBytes(data)
 }
 
 //export RSA_Sign_PSS
-func RSA_Sign_PSS(id *C.char, raw []byte, hashLength, saltLength C.int) []byte {
+func RSA_Sign_PSS(id *C.char, raw unsafe.Pointer, len, hashLength, saltLength C.int) unsafe.Pointer {
 	_id := C.GoString(id)
-	data, err := rsa.SignPSS(_id, raw, int(hashLength), int(saltLength))
+	_raw := C.GoBytes(raw, len)
+	data, err := rsa.SignPSS(_id, _raw, int(hashLength), int(saltLength))
 	lastError = err
-	return data
+	return C.CBytes(data)
 }
 
 //export RSA_Verify_PKCS_1v15
-func RSA_Verify_PKCS_1v15(id *C.char, data, signature []byte, size C.int) bool {
+func RSA_Verify_PKCS_1v15(id *C.char, data, signature unsafe.Pointer, l1, l2, size C.int) bool {
 	_id := C.GoString(id)
-	err := rsa.VerifyPKCS1v15(_id, data, signature, int(size))
+	_data := C.GoBytes(data, l1)
+	_signature := C.GoBytes(signature, l2)
+	err := rsa.VerifyPKCS1v15(_id, _data, _signature, int(size))
 	lastError = err
 	return err != nil
 }
 
 //export RSA_Verify_PSS
-func RSA_Verify_PSS(id *C.char, data, signature []byte, hashLength, saltLength C.int) bool {
+func RSA_Verify_PSS(id *C.char, data, signature unsafe.Pointer, l1, l2, hashLength, saltLength C.int) bool {
 	_id := C.GoString(id)
-	err := rsa.VerifyPSS(_id, data, signature, int(hashLength), int(saltLength))
+	_data := C.GoBytes(data, l1)
+	_signature := C.GoBytes(signature, l2)
+	err := rsa.VerifyPSS(_id, _data, _signature, int(hashLength), int(saltLength))
 	lastError = err
 	return err != nil
 }
