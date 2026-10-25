@@ -35,7 +35,7 @@ func TrimToBits(data []byte, bitLen int) []byte {
 }
 
 // random generate random bytes by given size
-func random(size int) []byte {
+func Random(size int) []byte {
 	genkey := make([]byte, size)
 	_, err := rand.Read(genkey)
 	if err != nil {
@@ -45,8 +45,8 @@ func random(size int) []byte {
 }
 
 // randomStr generate random string by given size
-func randomStr(size int) string {
-	return hex.EncodeToString(random(size))[:size]
+func RandomStr(size int) string {
+	return hex.EncodeToString(Random(size))[:size]
 }
 
 // DecodeJWK decode string:string key:value pair to string:[]byte; received from JS

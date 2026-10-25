@@ -28,5 +28,15 @@ func main() {
 	wasm.InitEcdh(root)
 	wasm.InitED25519(root)
 	wasm.InitX25519(root)
+	// WebCrypto API Version 2 spec (draft)
+	// https://wicg.github.io/webcrypto-modern-algos/
+	// NOTE: SHA3 added to InitHash
+	// NOTE: CShake added to InitHash
+	// TODO SLH-DSA, AES-OCB, TurboShake, KangarooTwelve, Argon2
+	// TODO ML-DSA not yet supported by GO, in ver 27
+	wasm.InitMlKem(root)
+	wasm.InitMlDsa(root)
+	wasm.InitChaChaPoly(root)
+	wasm.InitKmac(root)
 	<-done
 }

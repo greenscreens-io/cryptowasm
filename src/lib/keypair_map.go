@@ -12,8 +12,6 @@ package lib
 * var ecdhKeyPairStore = lib.NewKeyPairStore[ecdh.PrivateKey, ecdh.PublicKey]()
  */
 
-const idSize = 8
-
 // KeyPairStore a generic memory cache for async keys
 type KeyPairStore[K any, P any] struct {
 	Private *KeyStore[K]
@@ -22,7 +20,7 @@ type KeyPairStore[K any, P any] struct {
 
 // newID generate random id for KeyPairStore
 func (c *KeyPairStore[K, P]) newID() string {
-	id := randomStr(idSize)
+	id := RandomStr(IdSize)
 	if c.ExistsAny(id) {
 		return c.newID()
 	}

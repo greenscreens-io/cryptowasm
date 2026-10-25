@@ -10,9 +10,12 @@ package wasm
 
 import (
 	"syscall/js"
-	"wasm/cryptojs/src/lib"
-	"wasm/cryptojs/src/x25519"
-)
+	"wasm/cryptowasm/src/lib"
+	"wasm/cryptowasm/src/x25519"
+	/*
+		"wasm/cryptojs/src/lib"
+		"wasm/cryptojs/src/x25519"
+	*/)
 
 // InitEcdh register x25519 engine to the globalThis.CryptoWasm
 func InitX25519(root js.Value) {

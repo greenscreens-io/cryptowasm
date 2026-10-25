@@ -37,11 +37,24 @@ func Sha512(data []byte) ([]byte, error) {
 	return dosha(data, crypto.SHA512.New())
 }
 
+func Sha3_256(data []byte) ([]byte, error) {
+	return dosha(data, crypto.SHA3_256.New())
+}
+
+func Sha3_384(data []byte) ([]byte, error) {
+	return dosha(data, crypto.SHA3_384.New())
+}
+
+func Sha3_512(data []byte) ([]byte, error) {
+	return dosha(data, crypto.SHA3_512.New())
+}
+
 func dosha(data []byte, fn hash.Hash) ([]byte, error) {
 	fn.Write(data)
 	return fn.Sum(nil), nil
 }
 
+// SizeToAlg used in hkdf, pbkdf2, rsa
 func SizeToAlg(size int) (crypto.Hash, error) {
 	var alg crypto.Hash
 	switch size {
@@ -61,6 +74,7 @@ func SizeToAlg(size int) (crypto.Hash, error) {
 	return alg, nil
 }
 
+// DataToHash used in ecda, rsa
 func DataToHash(data []byte, size int) []byte {
 	var hash []byte
 	switch size {

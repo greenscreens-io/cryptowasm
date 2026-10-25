@@ -14,5 +14,5 @@ set PKG_CONFIG_LIBDIR=%MINGW%\lib64\pkgconfig
 
 @echo on
 rem call X:\TDM-GCC-64\mingwvars.bat
-go build -trimpath -ldflags "-s -w" -buildmode=c-shared -o ./cryptojs.dll ./src
+go build -buildvcs=false -trimpath -ldflags "-s -w" -buildmode=c-shared -o ./cryptojs.dll ./src
 
