@@ -6,6 +6,7 @@ import Digest from './digest.mjs';
 import DeriveKey from './derive.mjs';
 import EncryptDecrypt from './encrypt_decrypt.mjs';
 import SignVerify from './sign_verify.mjs';
+import MLKEM from './mlkem.mjs';
 
 
 function downloadJWK(obj, type) {
@@ -38,6 +39,7 @@ async function testAll() {
     await EncryptDecrypt.testAll(result, imported);
     await SignVerify.testAll(result, imported);
     await DeriveKey.testAll(result, imported);
+    await MLKEM.test();
 
 }
 

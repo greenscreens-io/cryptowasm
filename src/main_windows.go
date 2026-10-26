@@ -10,6 +10,7 @@ import "C"
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"unsafe"
 	"wasm/cryptowasm/src/base"
 	"wasm/cryptowasm/src/ecdh"
@@ -216,7 +217,15 @@ func RSA_Export_Private_Key_Raw(id *C.char) unsafe.Pointer {
 	_id := C.GoString(id)
 	data, err := rsa.ExportPrivateKey(_id, lib.FormatRaw)
 	lastError = err
-	return C.CBytes(data.([]byte))
+	if err != nil {
+		return nil
+	}
+	raw, ok := data.([]byte)
+	if !ok {
+		lastError = errors.New(lib.ERR_INVALID_FORMAT)
+		return nil
+	}
+	return C.CBytes(raw)
 }
 
 //export RSA_Export_Private_Key_Pem
@@ -245,7 +254,15 @@ func RSA_Export_Public_Key_Raw(id *C.char) unsafe.Pointer {
 	_id := C.GoString(id)
 	data, err := rsa.ExportPublicKey(_id, lib.FormatRaw)
 	lastError = err
-	return C.CBytes(data.([]byte))
+	if err != nil {
+		return nil
+	}
+	raw, ok := data.([]byte)
+	if !ok {
+		lastError = errors.New(lib.ERR_INVALID_FORMAT)
+		return nil
+	}
+	return C.CBytes(raw)
 }
 
 //export RSA_Export_Public_Key_Pem
@@ -344,7 +361,7 @@ func RSA_Verify_PKCS_1v15(id *C.char, data, signature unsafe.Pointer, l1, l2, si
 	_signature := C.GoBytes(signature, l2)
 	err := rsa.VerifyPKCS1v15(_id, _data, _signature, int(size))
 	lastError = err
-	return err != nil
+	return err == nil
 }
 
 //export RSA_Verify_PSS
@@ -354,7 +371,7 @@ func RSA_Verify_PSS(id *C.char, data, signature unsafe.Pointer, l1, l2, hashLeng
 	_signature := C.GoBytes(signature, l2)
 	err := rsa.VerifyPSS(_id, _data, _signature, int(hashLength), int(saltLength))
 	lastError = err
-	return err != nil
+	return err == nil
 }
 
 //export ECDH_Remove_Key
@@ -432,7 +449,7 @@ func ECDH_Export_Public_Key_Jwk(id *C.char) *C.char {
 	if err != nil {
 		return C.CString("")
 	}
-	jstr, err := json.Marshal(data.(map[string]string))
+	jstr, err := json.Marshal(data.(map[string]any))
 	lastError = err
 	return C.CString(string(jstr))
 }
@@ -461,7 +478,7 @@ func ECDH_Export_Private_Key_Jwk(id *C.char) *C.char {
 	if err != nil {
 		return C.CString("")
 	}
-	jstr, err := json.Marshal(data.(map[string]string))
+	jstr, err := json.Marshal(data.(map[string]any))
 	lastError = err
 	return C.CString(string(jstr))
 }
@@ -754,7 +771,7 @@ func X25519_Import_Private_Key(raw unsafe.Pointer, len C.int) *C.char {
 //export X25519_Import_Jwk
 func X25519_Import_Jwk(jsStr *C.char) *C.char {
 
-	keys := []string{"d", "x", "y"}
+	keys := []string{"d", "x"}
 	jsRaw, err := decodeJWK(jsStr, keys)
 	if err != nil {
 		lastError = err

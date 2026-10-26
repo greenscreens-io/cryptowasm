@@ -38,6 +38,28 @@ globalThis.CryptoWasm will be available after initialization with CryptoJSWasm.i
 Check examples below or refer to GO code or CryptoJS.mjs / CryptoKeyJS.mjs to see how CryptoWasm is used internaly.
 All CryptoWasm calls are synchronous. Async mode is emulated through CryptoJS.mjs drop-in replacement to have 1-to-1 mapping to the native browser implemetation.
 
+## ML-DSA, KMAC, and ChaCha20-Poly1305
+
+These algorithms are exposed under separate namespaces:
+
+```javascript
+const message = new TextEncoder().encode('message');
+const signingKey = CryptoWasm.mldsa.GenerateKey(65);
+const signature = CryptoWasm.mldsa.Sign(signingKey, message);
+const valid = CryptoWasm.mldsa.Verify(signingKey, message, signature);
+
+const macKey = CryptoWasm.kmac.GenerateKey(128);
+const tag = CryptoWasm.kmac.Sign(macKey, message, 256);
+const tagIsValid = CryptoWasm.kmac.Verify(macKey, message, tag);
+
+const aeadKey = CryptoWasm.chacha20poly1305.GenerateKey();
+const nonce = CryptoWasm.random(12);
+const additionalData = new Uint8Array();
+const ciphertext = CryptoWasm.chacha20poly1305.Encrypt(aeadKey, nonce, additionalData, message);
+const plaintext = CryptoWasm.chacha20poly1305.Decrypt(aeadKey, nonce, additionalData, ciphertext);
+```
+
+ML-DSA accepts parameter-set sizes `44`, `65`, or `87`. Its optional signing context must be the same for signing and verification and no longer than 255 bytes. KMAC accepts strengths `128` or `256`; its sign operation takes the requested output length in bits, and verification uses the supplied tag length.
 
 ## Using random functions
 <hr>
@@ -206,3 +228,19 @@ Wasm implementation
 let data = 'The quick brown fox jumps over the lazy dog';
 CryptoWasm.GeneratePBKDF2(data, "123456781234567812345678", 1000, 16, 64)
 ```
+
+## Using ML-KEM
+
+The static SubtleCrypto wrapper supports ML-KEM-768 and ML-KEM-1024:
+
+```javascript
+const algorithm = {name: 'ML-KEM-768'};
+const {publicKey, privateKey} = await crypto.subtle.generateKey(
+    algorithm, true, ['encapsulateBits', 'decapsulateBits']
+);
+
+const {sharedKey, ciphertext} = await crypto.subtle.encapsulateBits(algorithm, publicKey);
+const recovered = await crypto.subtle.decapsulateBits(algorithm, privateKey, ciphertext);
+```
+
+Public keys can be imported/exported as `raw`, `spki`, or `jwk`; private keys support `pkcs8` and `jwk`.

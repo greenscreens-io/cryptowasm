@@ -5,10 +5,10 @@ package x25519
 
 import (
 	"crypto/ecdh"
-	"crypto/ecdsa"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 )
 
 // encodePrivKey encode GO private key into a Base64 PEM format
@@ -54,6 +54,9 @@ func encodePubKeyPEM(x509EncodedPub []byte) (string, error) {
 // decodePrivKey decodes PKCS8 Base64 encoded private key into GO structure
 func decodePrivKey(privateKey string) (*ecdh.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(privateKey))
+	if block == nil {
+		return nil, errors.New("invalid PEM encoding")
+	}
 	x509Encoded := block.Bytes
 	return decodePrivKeyRaw(x509Encoded)
 }
@@ -64,12 +67,22 @@ func decodePrivKeyRaw(x509Encoded []byte) (*ecdh.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*ecdsa.PrivateKey).ECDH()
+	privateKey, ok := pk.(*ecdh.PrivateKey)
+	if !ok {
+		return nil, errors.New("PKCS8 key is not an X25519 private key")
+	}
+	if privateKey.Curve() != ecdh.X25519() {
+		return nil, errors.New("PKCS8 key is not an X25519 private key")
+	}
+	return privateKey, nil
 }
 
 // decodePubKey decodes PKIX Base64 encoded public key into GO structure
 func decodePubKey(publicKey string) (*ecdh.PublicKey, error) {
 	blockPub, _ := pem.Decode([]byte(publicKey))
+	if blockPub == nil {
+		return nil, errors.New("invalid PEM encoding")
+	}
 	x509EncodedPub := blockPub.Bytes
 	return decodePubKeyRaw(x509EncodedPub)
 }
@@ -80,7 +93,14 @@ func decodePubKeyRaw(x509EncodedPub []byte) (*ecdh.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*ecdsa.PublicKey).ECDH()
+	publicKey, ok := pk.(*ecdh.PublicKey)
+	if !ok {
+		return nil, errors.New("PKIX key is not an X25519 public key")
+	}
+	if publicKey.Curve() != ecdh.X25519() {
+		return nil, errors.New("PKIX key is not an X25519 public key")
+	}
+	return publicKey, nil
 }
 
 // exportPrivateJWK exports GO private key structure into JSON Web Token
@@ -88,13 +108,10 @@ func exportPrivateJWK(key *ecdh.PrivateKey) (jwk map[string]any, err error) {
 	enc := base64.RawURLEncoding
 	publicKey := key.PublicKey()
 	sb := key.Bytes()
-	pb := publicKey.Bytes()[1:]
-	seg := len(pb) / 2
 	jwk = map[string]any{
 		"crv": "X25519",
 		"d":   enc.EncodeToString(sb),
-		"x":   enc.EncodeToString(pb[0:seg]),
-		"y":   enc.EncodeToString(pb[seg:]),
+		"x":   enc.EncodeToString(publicKey.Bytes()),
 		"ext": "true",
 		"kty": "OKP",
 	}
@@ -104,12 +121,9 @@ func exportPrivateJWK(key *ecdh.PrivateKey) (jwk map[string]any, err error) {
 // exportPublicJWK exports GO public key structure into JSON Web Token
 func exportPublicJWK(key *ecdh.PublicKey) (jwk map[string]any, err error) {
 	enc := base64.RawURLEncoding
-	pb := key.Bytes()[1:]
-	seg := len(pb) / 2
 	jwk = map[string]any{
 		"crv": "X25519",
-		"x":   enc.EncodeToString(pb[0:seg]),
-		"y":   enc.EncodeToString(pb[seg:]),
+		"x":   enc.EncodeToString(key.Bytes()),
 		"ext": "true",
 		"kty": "OKP",
 	}

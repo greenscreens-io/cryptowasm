@@ -33,7 +33,6 @@ func main() {
 	// NOTE: SHA3 added to InitHash
 	// NOTE: CShake added to InitHash
 	// TODO SLH-DSA, AES-OCB, TurboShake, KangarooTwelve, Argon2
-	// TODO ML-DSA not yet supported by GO, in ver 27
 	wasm.InitMlKem(root)
 	wasm.InitMlDsa(root)
 	wasm.InitChaChaPoly(root)

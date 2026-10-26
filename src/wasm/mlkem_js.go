@@ -13,17 +13,17 @@ import (
 
 // README https://wicg.github.io/webcrypto-modern-algos/#ml-kem
 
-// InitMlKem register ecdsa engine to the globalThis.CryptoWasm
+// InitMlKem registers the ML-KEM engine on globalThis.CryptoWasm.
 func InitMlKem(root js.Value) {
-	ecdsaObj := initChild("mlkem", root)
-	ecdsaObj.Set("GenerateKey", js.FuncOf(generateKeyMLKEM))
-	ecdsaObj.Set("Encapsulate", js.FuncOf(encapsulateMLKEM))
-	ecdsaObj.Set("Decapsulate", js.FuncOf(decapsulateMLKEM))
-	ecdsaObj.Set("ImportJWK", js.FuncOf(importJWKMLKEM))
-	ecdsaObj.Set("ImportKey", js.FuncOf(importKeyMLKEM))
-	ecdsaObj.Set("ExportKey", js.FuncOf(exportKeyMLKEM))
-	ecdsaObj.Set("RemoveKey", js.FuncOf(removeKeyMLKEM))
-	ecdsaObj.Set("HasKey", js.FuncOf(hasKeyMLKEM))
+	mlkemObj := initChild("mlkem", root)
+	mlkemObj.Set("GenerateKey", js.FuncOf(generateKeyMLKEM))
+	mlkemObj.Set("Encapsulate", js.FuncOf(encapsulateMLKEM))
+	mlkemObj.Set("Decapsulate", js.FuncOf(decapsulateMLKEM))
+	mlkemObj.Set("ImportJWK", js.FuncOf(importJWKMLKEM))
+	mlkemObj.Set("ImportKey", js.FuncOf(importKeyMLKEM))
+	mlkemObj.Set("ExportKey", js.FuncOf(exportKeyMLKEM))
+	mlkemObj.Set("RemoveKey", js.FuncOf(removeKeyMLKEM))
+	mlkemObj.Set("HasKey", js.FuncOf(hasKeyMLKEM))
 }
 
 func generateKeyMLKEM(this js.Value, args []js.Value) any {
@@ -51,8 +51,8 @@ func encapsulateMLKEM(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
-	types := []js.Type{js.TypeString, js.TypeString, js.TypeNumber}
-	_, err := validateJSArgs(args, types, nil)
+	types := []js.Type{js.TypeString}
+	_, err := validateJSArgs(args, types, []int{1})
 	if err != nil {
 		return errorToJS(err)
 	}
@@ -74,7 +74,7 @@ func decapsulateMLKEM(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
-	types := []js.Type{js.TypeString, js.TypeString}
+	types := []js.Type{js.TypeString, TypeUint8Array}
 	_, err := validateJSArgs(args, types, nil)
 	if err != nil {
 		return errorToJS(err)
@@ -108,8 +108,8 @@ func importJWKMLKEM(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
-	types := []js.Type{js.TypeObject}
-	_, err := validateJSArgs(args, types, nil)
+	types := []js.Type{js.TypeObject, js.TypeString}
+	_, err := validateJSArgs(args, types, []int{1, 2})
 	if err != nil {
 		return errorToJS(err)
 	}
@@ -117,15 +117,21 @@ func importJWKMLKEM(this js.Value, args []js.Value) any {
 	raw := map[string][]byte{}
 	jsObj := args[0]
 
-	l := []string{"priv", "pub"}
-	for _, v := range l {
-		err = decodeB64(v, &jsObj, &raw)
-		if err != nil {
-			return errorToJS(err)
+	for _, field := range []string{"priv", "pub"} {
+		value := jsObj.Get(field)
+		if value.Type() == js.TypeString {
+			raw[field] = []byte(value.String())
 		}
 	}
 
-	result, err := mlkem.ImportJWK(&raw, jsObj.Get("crv").String())
+	algorithm := jsObj.Get("alg").String()
+	if algorithm == "" {
+		algorithm = jsObj.Get("crv").String()
+	}
+	if len(args) > 1 {
+		algorithm = args[1].String()
+	}
+	result, err := mlkem.ImportJWK(&raw, algorithm)
 	if err != nil {
 		return errorToJS(err)
 	}
@@ -137,14 +143,18 @@ func importKeyMLKEM(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
-	types := []js.Type{TypeUint8Array, js.TypeBoolean}
-	_, err := validateJSArgs(args, types, []int{1, 2})
+	types := []js.Type{TypeUint8Array, js.TypeBoolean, js.TypeString}
+	_, err := validateJSArgs(args, types, []int{1, 2, 3})
 	if err != nil {
 		return errorToJS(err)
 	}
 
 	val := args[0]
 	isPub := getAsBool(&args, 1, false)
+	algorithm := ""
+	if len(args) > 2 {
+		algorithm = args[2].String()
+	}
 
 	var data any
 
@@ -162,7 +172,7 @@ func importKeyMLKEM(this js.Value, args []js.Value) any {
 	if isPub {
 		data, err = mlkem.ImportPublicKey(data)
 	} else {
-		data, err = mlkem.ImportPrivateKey(data)
+		data, err = mlkem.ImportPrivateKey(data, algorithm)
 	}
 
 	if err != nil {

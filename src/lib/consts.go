@@ -15,7 +15,7 @@ const ERR_INVALID_HASH = "invalid hash size"
 const ERR_INVALID_KEY_CHACHA = "invalid key size (256) available"
 const ERR_INVALID_KEY_RSA = "invalid key size (1024, 2048, 4096) available"
 const ERR_INVALID_KEY_EC = "invalid key size (256, 384, 521, 25519) available"
-const ERR_INVALID_KEY_ML = "invalid key size (512, 768, 1024) available"
+const ERR_INVALID_KEY_ML = "invalid key size (768, 1024) available"
 
 const ERR_KEY_NOT_FOUND = "key not found"
 const ERR_KEY_NOT_FOUND_PUB = "public key not found"
@@ -37,4 +37,4 @@ const (
 	FormatJWK
 )
 
-const IdSize = 8
+const IdSize = 32

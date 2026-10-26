@@ -98,7 +98,7 @@ func getAsBool(args *[]js.Value, id int, dft bool) bool {
 }
 
 func getAsInt(args *[]js.Value, id int, dft int) int {
-	if len(*args) < 1+1 {
+	if id < 0 || len(*args) <= id {
 		return dft
 	}
 	return (*args)[id].Int()

@@ -4,136 +4,155 @@
 package kmac
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
-	"hash"
+	"fmt"
+	"wasm/cryptowasm/src/base"
 	"wasm/cryptowasm/src/lib"
-
-	"golang.org/x/crypto/sha3"
 )
 
-var cache = lib.NewKeyStore[hash.Hash]()
+type key struct {
+	strength int
+	raw      []byte
+}
 
-func GenerateKey(size int) (string, error) {
-	var key hash.Hash
-	switch size {
+var cache = lib.NewKeyStore[key]()
+
+func GenerateKey(strength int) (string, error) {
+	keySize, err := keySizeForStrength(strength)
+	if err != nil {
+		return "", err
+	}
+
+	raw, err := base.Random(keySize)
+	if err != nil {
+		return "", err
+	}
+
+	entry := key{strength: strength, raw: raw}
+	return cache.Set(lib.RandomStr(lib.IdSize), &entry), nil
+}
+
+// Sign returns a KMAC tag whose length is outputBits.
+func Sign(id string, data []byte, outputBits int, customization ...[]byte) ([]byte, error) {
+	entry := cache.Get(id)
+	if entry == nil {
+		return nil, errors.New(lib.ERR_KEY_NOT_FOUND)
+	}
+	if len(customization) > 1 {
+		return nil, errors.New("KMAC accepts at most one customization string")
+	}
+	if outputBits <= 0 || outputBits%8 != 0 {
+		return nil, errors.New("KMAC output length must be a positive multiple of 8 bits")
+	}
+
+	return sum(entry, data, outputBits, customString(customization)), nil
+}
+
+// Verify compares tag against a KMAC tag of the same length.
+func Verify(id string, data, tag []byte, customization ...[]byte) (bool, error) {
+	entry := cache.Get(id)
+	if entry == nil {
+		return false, errors.New(lib.ERR_KEY_NOT_FOUND)
+	}
+	if len(customization) > 1 {
+		return false, errors.New("KMAC accepts at most one customization string")
+	}
+	if len(tag) == 0 {
+		return false, errors.New("KMAC tag must not be empty")
+	}
+
+	expected := sum(entry, data, len(tag)*8, customString(customization))
+	return subtle.ConstantTimeCompare(tag, expected) == 1, nil
+}
+
+func sum(entry *key, data []byte, outputBits int, customization []byte) []byte {
+	h := toAlgo(entry.strength, customization)
+	_, _ = h.Write(wrapKey(entry.strength, entry.raw))
+	_, _ = h.Write(data)
+	_, _ = h.Write(rightEncode(uint64(outputBits)))
+	result := make([]byte, outputBits/8)
+	_, _ = h.Read(result)
+	return result
+}
+
+func customString(customization [][]byte) []byte {
+	if len(customization) == 0 {
+		return nil
+	}
+	return customization[0]
+}
+
+func keySizeForStrength(strength int) (int, error) {
+	switch strength {
 	case 128:
-		key = sha3.NewCShake128(nil, nil)
+		return 16, nil
 	case 256:
-		key = sha3.NewCShake256(nil, nil)
+		return 32, nil
+	default:
+		return 0, fmt.Errorf("invalid KMAC strength %d (expected 128 or 256)", strength)
 	}
-	return cache.Set(lib.RandomStr(lib.IdSize), &key), nil
 }
 
-// Sign with KMAC
-func Sign(id string, nonce, tag, data []byte) ([]byte, error) {
-
-	aead := cache.Get(id)
-	if aead == nil {
-		return nil, errors.New(lib.ERR_KEY_NOT_FOUND)
-	}
-
-	//TODO
-
-	return nil, nil
-}
-
-// Verify with KMAC
-func Verify(id string, nonce, tag, data []byte) ([]byte, error) {
-
-	aead := cache.Get(id)
-	if aead == nil {
-		return nil, errors.New(lib.ERR_KEY_NOT_FOUND)
-	}
-
-	// TODO
-
-	return nil, nil
-}
-
-// validate Encrypte/Decrypt nonce,tag arguments
-func validate(nonce, tag []byte) error {
-
-	if nonce != nil && len(nonce) != 12 {
-		return errors.New(lib.ERR_INVALID_ARGS_LEN)
-	}
-
-	if tag != nil && len(tag) != 128 {
-		return errors.New(lib.ERR_INVALID_ARGS_LEN)
-	}
-
-	return nil
-}
-
-// ImportKey in raw format
+// ImportJWK imports the raw key in a JWK's "k" field.
 func ImportJWK(raw *map[string][]byte) (string, error) {
-	rawKey := (*raw)["k"]
-	return ImportKey(rawKey)
+	if raw == nil {
+		return "", errors.New("missing KMAC JWK")
+	}
+	return ImportKey((*raw)["k"])
 }
 
-// ImportKey in raw format
-func ImportKey(key []byte) (string, error) {
-
-	keylen := len(key)
-	ok := (keylen == 16) || (keylen == 32)
-	if !ok {
-		return "", errors.New(lib.ERR_INVALID_KEY_CHACHA)
+// ImportKey imports a raw 128- or 256-bit KMAC key.
+func ImportKey(raw []byte) (string, error) {
+	strength := 0
+	switch len(raw) {
+	case 16:
+		strength = 128
+	case 32:
+		strength = 256
+	default:
+		return "", errors.New("invalid KMAC key size (expected 16 or 32 bytes)")
 	}
 
-	var aead hash.Hash
-	// TODO
-	/*
-		aead, err := sha3.New256(),
-		if err != nil {
-			return "", err
-		}
-	*/
-
-	return cache.Set(lib.RandomStr(lib.IdSize), &aead), nil
+	entry := key{strength: strength, raw: append([]byte(nil), raw...)}
+	return cache.Set(lib.RandomStr(lib.IdSize), &entry), nil
 }
 
-// ExportKey in raw format
-func ExportKey(id string, fmt lib.Format) (any, error) {
-
-	aead := cache.Get(id)
-	if aead == nil {
+// ExportKey exports a key in raw or JWK format.
+func ExportKey(id string, format lib.Format) (any, error) {
+	entry := cache.Get(id)
+	if entry == nil {
 		return nil, errors.New(lib.ERR_KEY_NOT_FOUND)
 	}
 
-	var rawKey []byte
-
-	// TODO
-
-	switch fmt {
+	raw := append([]byte(nil), entry.raw...)
+	switch format {
 	case lib.FormatRaw:
-		return rawKey, nil
+		return raw, nil
 	case lib.FormatJWK:
-		return exportJWK(rawKey), nil
+		return exportJWK(raw, entry.strength), nil
 	default:
 		return nil, errors.New(lib.ERR_INVALID_FORMAT)
 	}
-
 }
 
-func exportJWK(key []byte) (jwk map[string]any) {
-	enc := base64.RawURLEncoding
-	jwk = map[string]any{
-		"k":   enc.EncodeToString(key[0:]),
-		"use": "enc",
-		"alg": "C20P",
+func exportJWK(raw []byte, strength int) map[string]any {
+	return map[string]any{
+		"k":   base64.RawURLEncoding.EncodeToString(raw),
+		"use": "sig",
+		"alg": fmt.Sprintf("KMAC%d", strength),
 		"kty": "oct",
-		"ext": "true",
+		"ext": true,
 	}
-	return jwk
 }
 
-// HasKey based on provided key id
-// exist in the memory cache
+// HasKey reports whether the key ID is present in the in-memory key store.
 func HasKey(id string) bool {
 	return cache.Exist(id)
 }
 
-// RemoveKey based on provided key id, removes a key from the cache
+// RemoveKey removes the key ID from the in-memory key store.
 func RemoveKey(id string) bool {
 	return cache.Remove(id)
 }

@@ -13,15 +13,17 @@ import (
 	"wasm/cryptowasm/src/lib"
 )
 
-// InitChahapoly register ecdsa engine to the globalThis.CryptoWasm
+// InitChaChaPoly registers ChaCha20-Poly1305 on globalThis.CryptoWasm.
 func InitChaChaPoly(root js.Value) {
-	ecdsaObj := initChild("mlkem", root)
-	ecdsaObj.Set("GenerateKey", js.FuncOf(generateKeyCHACHAPOLY))
-	ecdsaObj.Set("ImportJWK", js.FuncOf(importJWKCHACHAPOLY))
-	ecdsaObj.Set("ImportKey", js.FuncOf(importKeyCHACHAPOLY))
-	ecdsaObj.Set("ExportKey", js.FuncOf(exportKeyCHACHAPOLY))
-	ecdsaObj.Set("RemoveKey", js.FuncOf(removeKeyCHACHAPOLY))
-	ecdsaObj.Set("HasKey", js.FuncOf(hasKeyCHACHAPOLY))
+	chachaObj := initChild("chacha20poly1305", root)
+	chachaObj.Set("GenerateKey", js.FuncOf(generateKeyCHACHAPOLY))
+	chachaObj.Set("Encrypt", js.FuncOf(encryptCHACHAPOLY))
+	chachaObj.Set("Decrypt", js.FuncOf(decryptCHACHAPOLY))
+	chachaObj.Set("ImportJWK", js.FuncOf(importJWKCHACHAPOLY))
+	chachaObj.Set("ImportKey", js.FuncOf(importKeyCHACHAPOLY))
+	chachaObj.Set("ExportKey", js.FuncOf(exportKeyCHACHAPOLY))
+	chachaObj.Set("RemoveKey", js.FuncOf(removeKeyCHACHAPOLY))
+	chachaObj.Set("HasKey", js.FuncOf(hasKeyCHACHAPOLY))
 }
 
 func generateKeyCHACHAPOLY(this js.Value, args []js.Value) any {

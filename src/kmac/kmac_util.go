@@ -84,7 +84,7 @@ func encode() {
 	// KMAC formatiranje ulaza: bytepad(encode_string(K), w) + poruka + right_encode(L)
 	w := 168 // block size za cSHAKE128 (za 256 je 136)
 	prefix := bytepad(encodeString(key), w)
-	
+
 	h.Write(prefix)
 	h.Write(msg)
 	h.Write(rightEncode(outLen))

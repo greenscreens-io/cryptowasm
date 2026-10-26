@@ -38,6 +38,11 @@ export default class CryptoJS {
         return this.#verify(format, ['pkcs8', 'spki', 'raw']);
     }
 
+    #verifyMLKEMUsages(isPublic, usages) {
+        const expected = isPublic ? 'encapsulateBits' : 'decapsulateBits';
+        if (usages.some(usage => usage !== expected)) throw new DOMException('SyntaxError');
+    }
+
     #isPublic(format) {
         switch (format) {
             case 'pkcs8': return false;
@@ -48,12 +53,45 @@ export default class CryptoJS {
         }
     }
 
-    #importAsyncKey(format, keyData, algorithm, extractable, usages, cryptojs) {
+    #importAsyncKey(format, keyData, algorithm, extractable, usages, cryptojs, algorithmName = '') {
         const me = this;
         me.#verifyAsync(format);
         const isPublic = me.#isPublic(format);
-        const key = cryptojs.ImportKey(keyData, isPublic);
-        return new CryptoKeyJS(algorithm, extractable, usages, key);
+        if (algorithmName) me.#verifyMLKEMUsages(isPublic, usages);
+        const key = algorithmName ? cryptojs.ImportKey(keyData, isPublic, algorithmName) : cryptojs.ImportKey(keyData, isPublic);
+        return new CryptoKeyJS(algorithm, extractable, usages, key, algorithmName ? isPublic : null);
+    }
+
+    #generateKeyMLKEM(algorithm, extractable, usages) {
+        const name = algorithm.name;
+        const size = name === 'ML-KEM-768' ? 768 : name === 'ML-KEM-1024' ? 1024 : 0;
+        if (!size) throw new Error(CryptoJS.#ERR_INVALID_ALG);
+        const allowed = ['encapsulateBits', 'decapsulateBits'];
+        if (usages.some(usage => !allowed.includes(usage))) throw new DOMException('SyntaxError');
+        const key = this.crypto.mlkem.GenerateKey(size);
+        const publicUsages = usages.filter(usage => usage === 'encapsulateBits');
+        const privateUsages = usages.filter(usage => usage === 'decapsulateBits');
+        return {
+            publicKey: new CryptoKeyJS(algorithm, extractable, publicUsages, key, true),
+            privateKey: new CryptoKeyJS(algorithm, extractable, privateUsages, key, false)
+        };
+    }
+
+    #importJWKMLKEM(keyData, algorithm, extractable, usages) {
+        if (!keyData || typeof keyData !== 'object' || !['AKP', 'KEM'].includes(keyData.kty)) {
+            throw new TypeError(CryptoJS.#ERR_INVALID_FORMAT);
+        }
+        const algorithmName = algorithm.name || algorithm;
+        if (!['ML-KEM-768', 'ML-KEM-1024'].includes(algorithmName)) {
+            throw new Error(CryptoJS.#ERR_INVALID_ALG);
+        }
+        if (keyData.alg && keyData.alg !== algorithmName) throw new Error(CryptoJS.#ERR_INVALID_KEY_ALG);
+        const isPublic = typeof keyData.priv !== 'string';
+        if (isPublic && typeof keyData.pub !== 'string') throw new TypeError(CryptoJS.#ERR_INVALID_FORMAT);
+        this.#verifyMLKEMUsages(isPublic, usages);
+        const jwk = {...keyData, alg: keyData.alg || algorithmName};
+        const key = this.crypto.mlkem.ImportJWK(jwk, algorithmName);
+        return new CryptoKeyJS(algorithm, extractable, usages, key, isPublic);
     }
 
     #importSyncKey(format, keyData, algorithm, extractable, usages) {
@@ -167,6 +205,23 @@ export default class CryptoJS {
         const res = (key.privateKey || key).decrypt(data, iv);
         if (typeof res?.error === 'string') throw new Error(res.error);
         return me.asRaw ? res.buffer : res;
+    }
+
+    async encapsulateBits(algorithm, publicKey) {
+        const me = this;
+        me.#verifyName(algorithm, publicKey);
+        const result = publicKey.encapsulate();
+        return {
+            sharedKey: me.asRaw ? result.sharedKey.buffer : result.sharedKey,
+            ciphertext: me.asRaw ? result.ciphertext.buffer : result.ciphertext
+        };
+    }
+
+    async decapsulateBits(algorithm, privateKey, ciphertext) {
+        const me = this;
+        me.#verifyName(algorithm, privateKey);
+        const result = privateKey.decapsulate(me.#toUint8Array(ciphertext));
+        return me.asRaw ? result.buffer : result;
     }
 
     /**
@@ -296,6 +351,10 @@ export default class CryptoJS {
             case 'AES-GCM':
                 res = me.#generateKeyAES(algorithm, extractable, keyUsages);
                 break;
+            case 'ML-KEM-768':
+            case 'ML-KEM-1024':
+                res = me.#generateKeyMLKEM(algorithm, extractable, keyUsages);
+                break;
             default: throw new Error(CryptoJS.#ERR_INVALID_ALG);
         }
         if (typeof res?.error === 'string') throw new Error(res.error);
@@ -313,10 +372,20 @@ export default class CryptoJS {
      */
     async importKey(format, keyData, algorithm, extractable, keyUsages) {
         const me = this;
-        keyData = me.#toUint8Array(keyData);
         const name = algorithm.name || algorithm;
         const wasm = me.crypto;
         let res = null;
+        if (name === 'ML-KEM-768' || name === 'ML-KEM-1024') {
+            if (format === 'jwk') {
+                res = me.#importJWKMLKEM(keyData, algorithm, extractable, keyUsages);
+            } else {
+                if (typeof keyData !== 'string') keyData = me.#toUint8Array(keyData);
+                res = me.#importAsyncKey(format, keyData, algorithm, extractable, keyUsages, wasm.mlkem, name);
+            }
+            if (typeof res?.error === 'string') throw new Error(res.error);
+            return res;
+        }
+        keyData = me.#toUint8Array(keyData);
         switch (name) {
             case 'AES-CBC':
             case 'AES-CTR':

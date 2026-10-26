@@ -79,9 +79,7 @@ func ImportJWK(raw *map[string][]byte) (string, error) {
 	isPublic := len((*raw)["d"]) == 0
 
 	if isPublic {
-		d := append([]byte{4}, (*raw)["x"]...)
-		d = append(d, (*raw)["y"]...)
-		k, err := fn.NewPublicKey(d)
+		k, err := fn.NewPublicKey((*raw)["x"])
 		if err != nil {
 			return "", err
 		}

@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
+	"errors"
 )
 
 // encodePrivKey encode GO private key into a Base64 PEM format
@@ -53,6 +54,9 @@ func encodePubKeyPEM(x509EncodedPub []byte) (string, error) {
 // decodePrivKey decodes PKCS8 Base64 encoded private key into GO structure
 func decodePrivKey(privateKey string) (*ed25519.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(privateKey))
+	if block == nil {
+		return nil, errors.New("invalid Ed25519 private key PEM")
+	}
 	x509Encoded := block.Bytes
 	return decodePrivKeyRaw(x509Encoded)
 }
@@ -63,12 +67,19 @@ func decodePrivKeyRaw(x509Encoded []byte) (*ed25519.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*ed25519.PrivateKey), nil
+	privateKey, ok := pk.(*ed25519.PrivateKey)
+	if !ok {
+		return nil, errors.New("PKCS8 key is not an Ed25519 private key")
+	}
+	return privateKey, nil
 }
 
 // decodePubKey decodes PKIX Base64 encoded public key into GO structure
 func decodePubKey(publicKey string) (*ed25519.PublicKey, error) {
 	blockPub, _ := pem.Decode([]byte(publicKey))
+	if blockPub == nil {
+		return nil, errors.New("invalid Ed25519 public key PEM")
+	}
 	x509EncodedPub := blockPub.Bytes
 	return decodePubKeyRaw(x509EncodedPub)
 }
@@ -79,7 +90,11 @@ func decodePubKeyRaw(x509EncodedPub []byte) (*ed25519.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*ed25519.PublicKey), nil
+	publicKey, ok := pk.(*ed25519.PublicKey)
+	if !ok {
+		return nil, errors.New("PKIX key is not an Ed25519 public key")
+	}
+	return publicKey, nil
 }
 
 // exportPrivateJWK exports GO private key structure into JSON Web Token

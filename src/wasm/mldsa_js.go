@@ -13,17 +13,17 @@ import (
 	"wasm/cryptowasm/src/mldsa"
 )
 
-// InitMlDsa register ecdsa engine to the globalThis.CryptoWasm
+// InitMlDsa registers the ML-DSA engine on globalThis.CryptoWasm.
 func InitMlDsa(root js.Value) {
-	ecdsaObj := initChild("mlkem", root)
-	ecdsaObj.Set("GenerateKey", js.FuncOf(generateKeyMLDSA))
-	ecdsaObj.Set("Sign", js.FuncOf(signMLDSA))
-	ecdsaObj.Set("Verify", js.FuncOf(verifyMLDSA))
-	ecdsaObj.Set("ImportJWK", js.FuncOf(importJWKMLDSA))
-	ecdsaObj.Set("ImportKey", js.FuncOf(importKeyMLDSA))
-	ecdsaObj.Set("ExportKey", js.FuncOf(exportKeyMLDSA))
-	ecdsaObj.Set("RemoveKey", js.FuncOf(removeKeyMLDSA))
-	ecdsaObj.Set("HasKey", js.FuncOf(hasKeyMLDSA))
+	mldsaObj := initChild("mldsa", root)
+	mldsaObj.Set("GenerateKey", js.FuncOf(generateKeyMLDSA))
+	mldsaObj.Set("Sign", js.FuncOf(signMLDSA))
+	mldsaObj.Set("Verify", js.FuncOf(verifyMLDSA))
+	mldsaObj.Set("ImportJWK", js.FuncOf(importJWKMLDSA))
+	mldsaObj.Set("ImportKey", js.FuncOf(importKeyMLDSA))
+	mldsaObj.Set("ExportKey", js.FuncOf(exportKeyMLDSA))
+	mldsaObj.Set("RemoveKey", js.FuncOf(removeKeyMLDSA))
+	mldsaObj.Set("HasKey", js.FuncOf(hasKeyMLDSA))
 }
 
 func generateKeyMLDSA(this js.Value, args []js.Value) any {
@@ -50,26 +50,47 @@ func signMLDSA(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
-	types := []js.Type{js.TypeNumber}
-	_, err := validateJSArgs(args, types, nil)
+	types := []js.Type{js.TypeString, TypeUint8Array, js.TypeString}
+	_, err := validateJSArgs(args, types, []int{2, 3})
 	if err != nil {
 		return errorToJS(err)
 	}
 
-	return nil
+	data, err := toNative(args[1])
+	if err != nil {
+		return errorToJS(err)
+	}
+
+	result, err := mldsa.Sign(args[0].String(), data, optionalString(args, 2))
+	if err != nil {
+		return errorToJS(err)
+	}
+	return bytesToJS(result)
 }
 
 func verifyMLDSA(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
-	types := []js.Type{js.TypeNumber}
-	_, err := validateJSArgs(args, types, nil)
+	types := []js.Type{js.TypeString, TypeUint8Array, TypeUint8Array, js.TypeString}
+	_, err := validateJSArgs(args, types, []int{3, 4})
 	if err != nil {
 		return errorToJS(err)
 	}
 
-	return nil
+	data, err := toNative(args[1])
+	if err != nil {
+		return errorToJS(err)
+	}
+	signature, err := toNative(args[2])
+	if err != nil {
+		return errorToJS(err)
+	}
+	valid, err := mldsa.Verify(args[0].String(), data, signature, optionalString(args, 3))
+	if err != nil {
+		return errorToJS(err)
+	}
+	return valid
 }
 
 func importJWKMLDSA(this js.Value, args []js.Value) any {
@@ -85,7 +106,7 @@ func importJWKMLDSA(this js.Value, args []js.Value) any {
 	raw := map[string][]byte{}
 	jsObj := args[0]
 
-	l := []string{"pub", "priv"}
+	l := []string{"priv", "pub"}
 	for _, v := range l {
 		err = decodeB64(v, &jsObj, &raw)
 		if err != nil {
@@ -105,14 +126,15 @@ func importKeyMLDSA(this js.Value, args []js.Value) any {
 
 	gc_wait = true
 
-	types := []js.Type{TypeUint8Array, js.TypeBoolean}
-	_, err := validateJSArgs(args, types, []int{1, 2})
+	types := []js.Type{TypeUint8Array, js.TypeBoolean, js.TypeString}
+	_, err := validateJSArgs(args, types, []int{1, 2, 3})
 	if err != nil {
 		return errorToJS(err)
 	}
 
 	val := args[0]
 	isPub := getAsBool(&args, 1, false)
+	algorithm := optionalString(args, 2)
 
 	var data any
 
@@ -130,7 +152,7 @@ func importKeyMLDSA(this js.Value, args []js.Value) any {
 	if isPub {
 		data, err = mldsa.ImportPublicKey(data)
 	} else {
-		data, err = mldsa.ImportPrivateKey(data)
+		data, err = mldsa.ImportPrivateKey(data, algorithm)
 	}
 
 	if err != nil {
@@ -139,6 +161,13 @@ func importKeyMLDSA(this js.Value, args []js.Value) any {
 
 	return data
 
+}
+
+func optionalString(args []js.Value, index int) string {
+	if len(args) <= index {
+		return ""
+	}
+	return args[index].String()
 }
 
 func exportKeyMLDSA(this js.Value, args []js.Value) any {

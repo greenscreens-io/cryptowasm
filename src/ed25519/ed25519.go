@@ -193,5 +193,5 @@ func HasKey(id string, pub bool) bool {
 
 // RemoveKey based on provided key id, removes a key from the cache
 func RemoveKey(id string, pub bool) bool {
-	return ed25519Cache.Exists(id, pub)
+	return ed25519Cache.Remove(id, pub)
 }

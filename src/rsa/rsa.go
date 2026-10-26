@@ -136,13 +136,13 @@ func GenerateKey(size, publicExponent int) (string, error) {
 		return "", errors.New(lib.ERR_INVALID_KEY_RSA)
 	}
 
+	if publicExponent != 0 && publicExponent != 65537 {
+		return "", errors.New("unsupported RSA public exponent (65537 only)")
+	}
+
 	privateKey, err := rsa.GenerateKey(rand.Reader, size)
 	if err != nil {
 		return "", err
-	}
-
-	if publicExponent > 0 {
-		privateKey.PublicKey.E = publicExponent
 	}
 
 	return rsaCache.SetKeyPair(privateKey, &privateKey.PublicKey), nil
@@ -153,7 +153,7 @@ func HasKey(id string, pub bool) bool {
 }
 
 func RemoveKey(id string, pub bool) bool {
-	return rsaCache.Exists(id, pub)
+	return rsaCache.Remove(id, pub)
 }
 
 func Encrypt(id string, size int, data []byte) ([]byte, error) {

@@ -60,6 +60,9 @@ func encodePubKeyPEM(x509EncodedPub []byte) (string, error) {
 // decodePrivKey decodes PKCS8 Base64 encoded private key into GO structure
 func decodePrivKey(privateKey string) (*ecdsa.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(privateKey))
+	if block == nil {
+		return nil, errors.New("invalid ECDSA private key PEM")
+	}
 	x509Encoded := block.Bytes
 	return decodePrivKeyRaw(x509Encoded)
 }
@@ -70,12 +73,19 @@ func decodePrivKeyRaw(x509Encoded []byte) (*ecdsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*ecdsa.PrivateKey), nil
+	privateKey, ok := pk.(*ecdsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("PKCS8 key is not an ECDSA private key")
+	}
+	return privateKey, nil
 }
 
 // decodePubKey decodes PKIX Base64 encoded public key into GO structure
 func decodePubKey(publicKey string) (*ecdsa.PublicKey, error) {
 	blockPub, _ := pem.Decode([]byte(publicKey))
+	if blockPub == nil {
+		return nil, errors.New("invalid ECDSA public key PEM")
+	}
 	x509EncodedPub := blockPub.Bytes
 	return decodePubKeyRaw(x509EncodedPub)
 }
@@ -86,7 +96,11 @@ func decodePubKeyRaw(x509EncodedPub []byte) (*ecdsa.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*ecdsa.PublicKey), nil
+	publicKey, ok := pk.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, errors.New("PKIX key is not an ECDSA public key")
+	}
+	return publicKey, nil
 }
 
 // importPrivateJWK imports JSON Web Token into GO private key structure

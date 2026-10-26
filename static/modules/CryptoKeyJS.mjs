@@ -6,15 +6,16 @@ export default class CryptoKeyJS {
     static #ERR_INVALID_SHA = 'Invalid SHA-x';
     static #ERR_INVALID_ALG = 'Invalid algorithm';
 
-    static #ASYNC_KEYS = ['ECDSA', 'ECDH', 'RSA-PSS', 'RSA-OAEP', 'RSASSA-PKCS1-v1_5', 'Ed25519', 'X25519'];
-    static #PRIVATE_OPS = ['sign', 'decrypt', 'deriveBits', 'deriveKey'];
+    static #ASYNC_KEYS = ['ECDSA', 'ECDH', 'RSA-PSS', 'RSA-OAEP', 'RSASSA-PKCS1-v1_5', 'Ed25519', 'X25519', 'ML-KEM-768', 'ML-KEM-1024'];
+    static #PRIVATE_OPS = ['sign', 'decrypt', 'deriveBits', 'deriveKey', 'decapsulateBits'];
 
     #algorithm;
     #extractable;
     #usages;
     #key;
+    #publicKey = null;
 
-    constructor(algorithm, extractable, usages, key) {
+    constructor(algorithm, extractable, usages, key, isPublic = null) {
 
         if (typeof key?.error === 'string') throw new Error(key.error);
 
@@ -27,6 +28,7 @@ export default class CryptoKeyJS {
         me.#extractable = extractable;
         me.#usages = usages;
         me.#key = key;
+        me.#publicKey = isPublic;
     }
 
     get extractable() {
@@ -40,12 +42,14 @@ export default class CryptoKeyJS {
     get isPublic() {
         const me = this;
         if (!me.isAsync) return false;
-        return me.#usages.length === 0 || ['verify', 'encrypt'].some(r => me.#usages.includes(r));
+        if (me.#publicKey !== null) return me.#publicKey;
+        return me.#usages.length === 0 || ['verify', 'encrypt', 'encapsulateBits'].some(r => me.#usages.includes(r));
     }
 
     get isPrivate() {
         const me = this;
         if (!me.isAsync) return false;
+        if (me.#publicKey !== null) return !me.#publicKey;
         return CryptoKeyJS.#PRIVATE_OPS.some(r => me.#usages.includes(r));
     }
 
@@ -354,6 +358,28 @@ export default class CryptoKeyJS {
         }
     }
 
+    encapsulate() {
+        const me = this;
+        if (!me.#algorithmName.startsWith('ML-KEM-')) {
+            throw new Error(`${CryptoKeyJS.#ERR_INVALID_ALG} : ${me.#algorithmName}`);
+        }
+        if (!me.isPublic || !me.#usages.includes('encapsulateBits')) throw new DOMException('InvalidAccessError');
+        const result = me.crypto.mlkem.Encapsulate(me.#key);
+        if (typeof result?.error === 'string') throw new Error(result.error);
+        return {sharedKey: result.sharedSecret, ciphertext: result.cipherText};
+    }
+
+    decapsulate(ciphertext) {
+        const me = this;
+        if (!me.#algorithmName.startsWith('ML-KEM-')) {
+            throw new Error(`${CryptoKeyJS.#ERR_INVALID_ALG} : ${me.#algorithmName}`);
+        }
+        if (!me.isPrivate || !me.#usages.includes('decapsulateBits')) throw new DOMException('InvalidAccessError');
+        const result = me.crypto.mlkem.Decapsulate(me.#key, ciphertext);
+        if (typeof result?.error === 'string') throw new Error(result.error);
+        return result;
+    }
+
     decrypt(data, iv) {
         const me = this;
         const aes = me.crypto.aes;
@@ -404,6 +430,9 @@ export default class CryptoKeyJS {
                 return me.#exportKeyAsync(format, me.crypto.ed25519);
             case 'X25519':
                 return me.#exportKeyAsync(format, me.crypto.x25519);                
+            case 'ML-KEM-768':
+            case 'ML-KEM-1024':
+                return me.#exportKeyAsync(format, me.crypto.mlkem);
             default: throw new Error(`${CryptoKeyJS.#ERR_INVALID_ALG} : ${name}`);
         }
 

@@ -5,11 +5,28 @@ package mlkem
 
 import (
 	"crypto/mlkem"
-	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"wasm/cryptowasm/src/lib"
+)
+
+type subjectPublicKeyInfo struct {
+	Algorithm pkix.AlgorithmIdentifier
+	PublicKey asn1.BitString
+}
+
+type privateKeyInfo struct {
+	Version    int
+	Algorithm  pkix.AlgorithmIdentifier
+	PrivateKey []byte
+}
+
+var (
+	oidMLKEM768  = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 2}
+	oidMLKEM1024 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 4, 3}
 )
 
 // encodePrivKey encode GO private key into a Base64 PEM format
@@ -23,12 +40,24 @@ func encodePrivKey(privateKey DecapsulationKey) (string, error) {
 
 // encodePrivKeyRaw convert GO private key structure into a binary PKCS8 form
 func encodePrivKeyRaw(privateKey DecapsulationKey) ([]byte, error) {
-	return x509.MarshalPKCS8PrivateKey(privateKey)
+	algorithm, err := algorithmForKey(privateKey.EncapsulationKey())
+	if err != nil {
+		return nil, err
+	}
+	seed, err := asn1.Marshal(asn1.RawValue{Class: 2, Tag: 0, Bytes: privateKey.Bytes()})
+	if err != nil {
+		return nil, err
+	}
+	return asn1.Marshal(privateKeyInfo{
+		Version:    0,
+		Algorithm:  pkix.AlgorithmIdentifier{Algorithm: algorithm},
+		PrivateKey: seed,
+	})
 }
 
 // encodePrivKeyPEM convert PKCS8 binary form into a Base64 format
 func encodePrivKeyPEM(x509Encoded []byte) (string, error) {
-	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE ML KEY", Bytes: x509Encoded})
+	pemEncoded := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: x509Encoded})
 	return string(pemEncoded), nil
 }
 
@@ -43,45 +72,111 @@ func encodePubKey(publicKey EncapsulationKey) (string, error) {
 
 // encodePubKeyRaw convert GO public key structure into a binary PKIX form
 func encodePubKeyRaw(publicKey EncapsulationKey) ([]byte, error) {
-	return x509.MarshalPKIXPublicKey(publicKey)
+	algorithm, err := algorithmForKey(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	raw := publicKey.Bytes()
+	return asn1.Marshal(subjectPublicKeyInfo{
+		Algorithm: pkix.AlgorithmIdentifier{Algorithm: algorithm},
+		PublicKey: asn1.BitString{Bytes: raw, BitLength: len(raw) * 8},
+	})
 }
 
 // encodePubKeyPEM convert PKIX binary form into a Base64 format
 func encodePubKeyPEM(x509EncodedPub []byte) (string, error) {
-	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC ML KEY", Bytes: x509EncodedPub})
+	pemEncodedPub := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: x509EncodedPub})
 	return string(pemEncodedPub), nil
 }
 
 // decodePrivKey decodes PKCS8 Base64 encoded private key into GO structure
 func decodePrivKey(privateKey string) (DecapsulationKey, error) {
 	block, _ := pem.Decode([]byte(privateKey))
+	if block == nil {
+		return nil, errors.New(lib.ERR_KEY_NOT_IMPORTED)
+	}
 	x509Encoded := block.Bytes
 	return decodePrivKeyRaw(x509Encoded)
 }
 
 // decodePrivKeyRaw decodes PKCS8 binary encoded private key into GO structure
 func decodePrivKeyRaw(x509Encoded []byte) (DecapsulationKey, error) {
-	pk, err := x509.ParsePKCS8PrivateKey(x509Encoded)
+	var info privateKeyInfo
+	rest, err := asn1.Unmarshal(x509Encoded, &info)
 	if err != nil {
 		return nil, err
 	}
-	return pk.(DecapsulationKey), nil
+	if len(rest) != 0 || info.Version != 0 {
+		return nil, errors.New("Invalid ML-KEM PKCS8 private key")
+	}
+	if len(info.Algorithm.Parameters.FullBytes) != 0 {
+		return nil, errors.New("ML-KEM AlgorithmIdentifier parameters must be absent")
+	}
+	size, err := sizeForOID(info.Algorithm.Algorithm)
+	if err != nil {
+		return nil, err
+	}
+	var seed asn1.RawValue
+	rest, err = asn1.Unmarshal(info.PrivateKey, &seed)
+	if err != nil {
+		return nil, err
+	}
+	if len(rest) != 0 || seed.Class != 2 || seed.Tag != 0 || seed.IsCompound {
+		return nil, errors.New("Invalid ML-KEM private key seed")
+	}
+	return importRawPrivateKey(size, seed.Bytes)
 }
 
 // decodePubKey decodes PKIX Base64 encoded public key into GO structure
 func decodePubKey(publicKey string) (EncapsulationKey, error) {
 	blockPub, _ := pem.Decode([]byte(publicKey))
+	if blockPub == nil {
+		return nil, errors.New(lib.ERR_KEY_NOT_IMPORTED)
+	}
 	x509EncodedPub := blockPub.Bytes
 	return decodePubKeyRaw(x509EncodedPub)
 }
 
 // decodePubKeyRaw decodes PKIX binary encoded public key into GO structure
 func decodePubKeyRaw(x509EncodedPub []byte) (EncapsulationKey, error) {
-	pk, err := x509.ParsePKIXPublicKey(x509EncodedPub)
+	var info subjectPublicKeyInfo
+	rest, err := asn1.Unmarshal(x509EncodedPub, &info)
 	if err != nil {
 		return nil, err
 	}
-	return pk.(EncapsulationKey), nil
+	if len(rest) != 0 || info.PublicKey.BitLength != len(info.PublicKey.Bytes)*8 {
+		return nil, errors.New("Invalid ML-KEM PKIX public key")
+	}
+	if len(info.Algorithm.Parameters.FullBytes) != 0 {
+		return nil, errors.New("ML-KEM AlgorithmIdentifier parameters must be absent")
+	}
+	size, err := sizeForOID(info.Algorithm.Algorithm)
+	if err != nil {
+		return nil, err
+	}
+	return importRawPublicKey(size, info.PublicKey.Bytes)
+}
+
+func algorithmForKey(key EncapsulationKey) (asn1.ObjectIdentifier, error) {
+	switch any(key).(type) {
+	case pubWrap768, *mlkem.EncapsulationKey768:
+		return oidMLKEM768, nil
+	case pubWrap1024, *mlkem.EncapsulationKey1024:
+		return oidMLKEM1024, nil
+	default:
+		return nil, errors.New("Unknown ML-KEM key type")
+	}
+}
+
+func sizeForOID(oid asn1.ObjectIdentifier) (int, error) {
+	switch {
+	case oid.Equal(oidMLKEM768):
+		return 768, nil
+	case oid.Equal(oidMLKEM1024):
+		return 1024, nil
+	default:
+		return 0, errors.New("Unsupported ML-KEM algorithm identifier")
+	}
 }
 
 // exportPrivateJWK exports GO private key structure into JSON Web Token
@@ -92,15 +187,14 @@ func exportPrivateJWK(key DecapsulationKey) (jwk map[string]any, err error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO get encapsulate,decapsulate
-	var ops []string
+	ops := []any{}
 	jwk = map[string]any{
 		"alg":     algo,
-		"pub":     enc.EncodeToString(publicKey.Bytes()[0:]),
-		"priv":    enc.EncodeToString(key.Bytes()[0:]),
+		"pub":     enc.EncodeToString(publicKey.Bytes()),
+		"priv":    enc.EncodeToString(key.Bytes()),
 		"key_ops": ops,
-		"ext":     "true",
-		"kty":     "KEM",
+		"ext":     true,
+		"kty":     "AKP",
 	}
 	return jwk, nil
 }
@@ -112,23 +206,22 @@ func exportPublicJWK(key EncapsulationKey) (jwk map[string]any, err error) {
 	if err != nil {
 		return nil, err
 	}
-	// TODO get encapsulate,decapsulate
-	var ops []string
+	ops := []any{}
 	jwk = map[string]any{
 		"alg":     algo,
-		"pub":     enc.EncodeToString(key.Bytes()[0:]),
+		"pub":     enc.EncodeToString(key.Bytes()),
 		"key_ops": ops,
-		"ext":     "true",
-		"kty":     "KEM",
+		"ext":     true,
+		"kty":     "AKP",
 	}
 	return jwk, nil
 }
 
 func toAlgo(key EncapsulationKey) (string, error) {
 	switch any(key).(type) {
-	case *mlkem.EncapsulationKey768:
+	case pubWrap768, *mlkem.EncapsulationKey768:
 		return "ML-KEM-768", nil
-	case *mlkem.EncapsulationKey1024:
+	case pubWrap1024, *mlkem.EncapsulationKey1024:
 		return "ML-KEM-1024", nil
 	}
 	return "", errors.New("Unknown ML-Key type")
@@ -137,8 +230,6 @@ func toAlgo(key EncapsulationKey) (string, error) {
 // nameToCurve convert algorithm name to a curve function
 func nameToSize(name string) (int, error) {
 	switch name {
-	case MLKEM512:
-		return 512, nil
 	case MLKEM768:
 		return 768, nil
 	case MLKEM1024:
@@ -158,6 +249,8 @@ func importRawPublicKey(size int, raw []byte) (EncapsulationKey, error) {
 		mlkey, err = importRawPublic768(raw)
 	case 1024:
 		mlkey, err = importRawPublic1024(raw)
+	default:
+		return nil, errors.New(lib.ERR_INVALID_KEY_ML)
 	}
 
 	if err != nil {
@@ -177,6 +270,8 @@ func importRawPrivateKey(size int, raw []byte) (DecapsulationKey, error) {
 		mlkey, err = importRawPrivate768(raw)
 	case 1024:
 		mlkey, err = importRawPrivate1024(raw)
+	default:
+		return nil, errors.New(lib.ERR_INVALID_KEY_ML)
 	}
 
 	if err != nil {

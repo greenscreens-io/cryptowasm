@@ -11,6 +11,9 @@ import (
 )
 
 func CBCEncrypter(key, data, iv []byte) ([]byte, error) {
+	if len(iv) != aes.BlockSize {
+		return nil, errors.New(lib.ERR_INVALID_ARGS_LEN)
+	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -33,13 +36,16 @@ func CBCEncrypter(key, data, iv []byte) ([]byte, error) {
 }
 
 func CBCDecrypter(key, data, iv []byte) ([]byte, error) {
+	if len(iv) != aes.BlockSize {
+		return nil, errors.New(lib.ERR_INVALID_ARGS_LEN)
+	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	ciphertext := data[:]
+	ciphertext := append([]byte(nil), data...)
 	// CBC mode always works in whole blocks.
 	if len(ciphertext)%aes.BlockSize != 0 {
 		return nil, errors.New(lib.ERR_MULTI_SIZE)
@@ -49,12 +55,13 @@ func CBCDecrypter(key, data, iv []byte) ([]byte, error) {
 	// CryptBlocks can work in-place if the two arguments are the same.
 	mode.CryptBlocks(ciphertext, ciphertext)
 
-	ciphertext, _ = unpad(ciphertext, aes.BlockSize)
-
-	return ciphertext, nil
+	return unpad(ciphertext, aes.BlockSize)
 }
 
 func CTREncrypter(key, data, iv []byte) ([]byte, error) {
+	if len(iv) != aes.BlockSize {
+		return nil, errors.New(lib.ERR_INVALID_ARGS_LEN)
+	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -68,6 +75,9 @@ func CTREncrypter(key, data, iv []byte) ([]byte, error) {
 }
 
 func CTRDecrypter(key, data, iv []byte) ([]byte, error) {
+	if len(iv) != aes.BlockSize {
+		return nil, errors.New(lib.ERR_INVALID_ARGS_LEN)
+	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -139,12 +149,18 @@ func pad(buf []byte, size int) ([]byte, error) {
 }
 
 func unpad(padded []byte, size int) ([]byte, error) {
-	if len(padded)%size != 0 {
+	if size <= 0 || len(padded) == 0 || len(padded)%size != 0 {
 		return nil, errors.New(lib.ERR_PAD_SIZE)
 	}
 
-	bufLen := len(padded) - int(padded[len(padded)-1])
-	buf := make([]byte, bufLen)
-	copy(buf, padded[:bufLen])
-	return buf, nil
+	padding := int(padded[len(padded)-1])
+	if padding == 0 || padding > size || padding > len(padded) {
+		return nil, errors.New(lib.ERR_PAD_SIZE)
+	}
+	for _, value := range padded[len(padded)-padding:] {
+		if int(value) != padding {
+			return nil, errors.New(lib.ERR_PAD_SIZE)
+		}
+	}
+	return padded[:len(padded)-padding], nil
 }

@@ -18,9 +18,11 @@ For implemented Web Crypto API fetures, please refer to https://developer.mozill
 
 ## Compilation
 
-- Code uses ECDH - requires Go 1.20
+- Code uses the standard-library ML-DSA implementation and requires Go 1.27 or later.
 
-- Last TinyGo 0.27 is required for minimal WASM size
+- ML-DSA uses Go's standard-library cryptography and may not be available in TinyGo builds.
+
+- TinyGo 0.27 can be used for minimal WASM size when supported by the selected Go APIs.
 
 - TinyGo memory management does not clean up object references. 
 
@@ -32,4 +34,4 @@ To see how to compile in GO and TinyGo, check __.bat__ files
 
 Check [Quickstart](Quickstart.md).
 
-&copy; Green Screens Ltd. 2016 - 2023
+&copy; Green Screens Ltd. 2016 - 2026

@@ -15,15 +15,15 @@ import (
 
 // InitKmac register KMAC engine to the globalThis.CryptoWasm
 func InitKmac(root js.Value) {
-	ecdsaObj := initChild("mlkem", root)
-	ecdsaObj.Set("GenerateKey", js.FuncOf(generateKeyKMAC))
-	ecdsaObj.Set("Sign", js.FuncOf(generateKeyKMAC))
-	ecdsaObj.Set("Verify", js.FuncOf(generateKeyKMAC))
-	ecdsaObj.Set("ImportJWK", js.FuncOf(importJWKKMAC))
-	ecdsaObj.Set("ImportKey", js.FuncOf(importKeyKMAC))
-	ecdsaObj.Set("ExportKey", js.FuncOf(exportKeyKMAC))
-	ecdsaObj.Set("RemoveKey", js.FuncOf(removeKeyKMAC))
-	ecdsaObj.Set("HasKey", js.FuncOf(hasKeyKMAC))
+	kmacObj := initChild("kmac", root)
+	kmacObj.Set("GenerateKey", js.FuncOf(generateKeyKMAC))
+	kmacObj.Set("Sign", js.FuncOf(signKMAC))
+	kmacObj.Set("Verify", js.FuncOf(verifyKMAC))
+	kmacObj.Set("ImportJWK", js.FuncOf(importJWKKMAC))
+	kmacObj.Set("ImportKey", js.FuncOf(importKeyKMAC))
+	kmacObj.Set("ExportKey", js.FuncOf(exportKeyKMAC))
+	kmacObj.Set("RemoveKey", js.FuncOf(removeKeyKMAC))
+	kmacObj.Set("HasKey", js.FuncOf(hasKeyKMAC))
 }
 
 func generateKeyKMAC(this js.Value, args []js.Value) any {
@@ -46,12 +46,71 @@ func generateKeyKMAC(this js.Value, args []js.Value) any {
 	return data
 }
 
-func signJWKKMAC(this js.Value, args []js.Value) any {
-	return nil
+func signKMAC(this js.Value, args []js.Value) any {
+	gc_wait = true
+
+	types := []js.Type{js.TypeString, TypeUint8Array, js.TypeNumber, TypeUint8Array}
+	_, err := validateJSArgs(args, types, []int{3, 4})
+	if err != nil {
+		return errorToJS(err)
+	}
+
+	data, err := toNative(args[1])
+	if err != nil {
+		return errorToJS(err)
+	}
+
+	var result []byte
+	if len(args) == 4 {
+		customization, err := toNative(args[3])
+		if err != nil {
+			return errorToJS(err)
+		}
+		result, err = kmac.Sign(args[0].String(), data, args[2].Int(), customization)
+	} else {
+		result, err = kmac.Sign(args[0].String(), data, args[2].Int())
+	}
+	if err != nil {
+		return errorToJS(err)
+	}
+
+	return bytesToJS(result)
 }
 
-func verifyJWKKMAC(this js.Value, args []js.Value) any {
-	return nil
+func verifyKMAC(this js.Value, args []js.Value) any {
+	gc_wait = true
+
+	types := []js.Type{js.TypeString, TypeUint8Array, TypeUint8Array, TypeUint8Array}
+	_, err := validateJSArgs(args, types, []int{3, 4})
+	if err != nil {
+		return errorToJS(err)
+	}
+
+	data, err := toNative(args[1])
+	if err != nil {
+		return errorToJS(err)
+	}
+
+	tag, err := toNative(args[2])
+	if err != nil {
+		return errorToJS(err)
+	}
+
+	var valid bool
+	if len(args) == 4 {
+		customization, err := toNative(args[3])
+		if err != nil {
+			return errorToJS(err)
+		}
+		valid, err = kmac.Verify(args[0].String(), data, tag, customization)
+	} else {
+		valid, err = kmac.Verify(args[0].String(), data, tag)
+	}
+	if err != nil {
+		return errorToJS(err)
+	}
+
+	return valid
 }
 
 func importJWKKMAC(this js.Value, args []js.Value) any {

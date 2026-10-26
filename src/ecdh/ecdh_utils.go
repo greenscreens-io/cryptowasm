@@ -57,6 +57,9 @@ func encodePubKeyPEM(x509EncodedPub []byte) (string, error) {
 // decodePrivKey decodes PKCS8 Base64 encoded private key into GO structure
 func decodePrivKey(privateKey string) (*ecdh.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(privateKey))
+	if block == nil {
+		return nil, errors.New("invalid ECDH private key PEM")
+	}
 	x509Encoded := block.Bytes
 	return decodePrivKeyRaw(x509Encoded)
 }
@@ -67,12 +70,22 @@ func decodePrivKeyRaw(x509Encoded []byte) (*ecdh.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*ecdsa.PrivateKey).ECDH()
+	switch privateKey := pk.(type) {
+	case *ecdh.PrivateKey:
+		return privateKey, nil
+	case *ecdsa.PrivateKey:
+		return privateKey.ECDH()
+	default:
+		return nil, errors.New("PKCS8 key is not an ECDH private key")
+	}
 }
 
 // decodePubKey decodes PKIX Base64 encoded public key into GO structure
 func decodePubKey(publicKey string) (*ecdh.PublicKey, error) {
 	blockPub, _ := pem.Decode([]byte(publicKey))
+	if blockPub == nil {
+		return nil, errors.New("invalid ECDH public key PEM")
+	}
 	x509EncodedPub := blockPub.Bytes
 	return decodePubKeyRaw(x509EncodedPub)
 }
@@ -83,7 +96,14 @@ func decodePubKeyRaw(x509EncodedPub []byte) (*ecdh.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*ecdsa.PublicKey).ECDH()
+	switch publicKey := pk.(type) {
+	case *ecdh.PublicKey:
+		return publicKey, nil
+	case *ecdsa.PublicKey:
+		return publicKey.ECDH()
+	default:
+		return nil, errors.New("PKIX key is not an ECDH public key")
+	}
 }
 
 // exportPrivateJWK exports GO private key structure into JSON Web Token

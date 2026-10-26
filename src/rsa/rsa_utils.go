@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"runtime"
 )
@@ -56,6 +57,9 @@ func encodePubKeyPEM(x509EncodedPub []byte) (string, error) {
 // decodePrivKey decodes PKCS8 Base64 encoded private key into GO structure
 func decodePrivKey(privateKey string) (*rsa.PrivateKey, error) {
 	block, _ := pem.Decode([]byte(privateKey))
+	if block == nil {
+		return nil, errors.New("invalid PEM encoding")
+	}
 	x509Encoded := block.Bytes
 	return decodePrivKeyRaw(x509Encoded)
 }
@@ -66,12 +70,19 @@ func decodePrivKeyRaw(x509Encoded []byte) (*rsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*rsa.PrivateKey), nil
+	privateKey, ok := pk.(*rsa.PrivateKey)
+	if !ok {
+		return nil, errors.New("PKCS8 key is not an RSA private key")
+	}
+	return privateKey, nil
 }
 
 // decodePubKey decodes PKIX Base64 encoded public key into GO structure
 func decodePubKey(publicKey string) (*rsa.PublicKey, error) {
 	blockPub, _ := pem.Decode([]byte(publicKey))
+	if blockPub == nil {
+		return nil, errors.New("invalid PEM encoding")
+	}
 	x509EncodedPub := blockPub.Bytes
 	return decodePubKeyRaw(x509EncodedPub)
 }
@@ -82,7 +93,11 @@ func decodePubKeyRaw(x509EncodedPub []byte) (*rsa.PublicKey, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pk.(*rsa.PublicKey), nil
+	publicKey, ok := pk.(*rsa.PublicKey)
+	if !ok {
+		return nil, errors.New("PKIX key is not an RSA public key")
+	}
+	return publicKey, nil
 }
 
 // importPrivateJWK imports JSON Web Token into GO private key structure
