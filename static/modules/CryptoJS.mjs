@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2023 Green Screens Ltd.
+ * Copyright (C) 2015, 2026 Green Screens Ltd.
  */
 import CryptoKeyJS from './CryptoKeyJS.mjs';
 import WasmLoader from './WasmLoader.mjs';
@@ -166,7 +166,7 @@ export default class CryptoJS {
         return me.#generateSignKeyEC(algorithm, extractable, usages, obj);
     }
 
-    // will be available in Go 1.20 February 2023.
+    // will be available in Go 1.20 February 2026.
     #generateKeyECDH(algorithm, extractable, usages) {
         const me = this;
         const key = me.#generateKeyEC(algorithm, me.crypto.ecdh);
